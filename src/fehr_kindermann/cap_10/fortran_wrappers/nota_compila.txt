@@ -1,0 +1,2 @@
+gfortran -shared -fPIC mod_julfort.f90 -o mod_julfort.so
+
