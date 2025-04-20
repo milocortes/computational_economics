@@ -2,7 +2,7 @@
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "073bc0aea065a56c13a03268cf7347a8ea8fa913"
+project_hash = "3b871590af9b4433358c07062514845792ba6228"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -434,6 +434,13 @@ version = "0.9.4"
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
+
+[[deps.DynamicProgrammingUtils]]
+git-tree-sha1 = "6d781b543b5111786da92201be99830b5294f94f"
+repo-rev = "main"
+repo-url = "https://github.com/milocortes/DynamicProgrammingUtils.jl.git"
+uuid = "df055df3-044f-499e-81ac-ea5ec7444157"
+version = "0.1.0"
 
 [[deps.EnumX]]
 git-tree-sha1 = "bddad79635af6aec424f53ed8aad5d7555dc6f00"
