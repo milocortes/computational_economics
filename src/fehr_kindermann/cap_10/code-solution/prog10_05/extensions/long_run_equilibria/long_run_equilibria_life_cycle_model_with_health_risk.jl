@@ -1,16 +1,16 @@
 ###############################################################################
-# PROGRAM HealthRiskCost
+# PROGRAM SOLG_LR
 #
-# ## The baseline life cycle model with health risk
+# ## Long-run equilibria in the baseline life cycle model with health risk
 #
 # This code is published under the GNU General Public License v3
 #                         (https://www.gnu.org/licenses/gpl-3.0.en.html)
 #
-# Authors: Hans Fehr, Maurice Hofmann and Fabian Kindermann
+# Authors: Hans Fehr and Fabian Kindermann
 #          contact@ce-fortran.com
 #
 ###############################################################################
-include("sol_prog10_05_utils.jl")
+
 
 using OffsetArrays
 using Plots 
@@ -122,33 +122,3 @@ global cons_com
 global ial_v = Array{Int64}(undef, 1)
 global iar_v = Array{Int64}(undef, 1)
 global varphi_v = zeros(1)
-
-@elapsed initialize()
-@elapsed solve_household()
-@elapsed get_distribution()
-@elapsed aggregation()
-
-ages = 20 .+ (1:JJ)
-
-
-plot(ages, c_coh[:, 1, 0], title = "Consumption", xlabel = "Age j", label="Low Skilled - Good Health")
-plot!(ages, c_coh[:, 1, 1], label="Low Skilled - Bad Health")
-plot!(ages, c_coh[:, 1, 2], label="Low Skilled - Average")
-plot!(ages, c_coh[:, 2, 0], label="High Skilled - Good Health")
-plot!(ages, c_coh[:, 2, 1], label="High Skilled - Bad Health")
-plot!(ages, c_coh[:, 2, 2], label="High Skilled - Average")
-plot!(ages, c_coh[:, 3, 0], label="Good Health")
-plot!(ages, c_coh[:, 3, 1], label="Bad Health")
-plot!(ages, c_coh[:, 3, 2], label="Average")
-
-
-plot(ages, y_coh[:, 1, 0]+pen, title="Earnings", xlabel="Age j", label="Low Skilled - Good Health")
-plot!(ages, y_coh[:, 1, 1]+pen, label="Low Skilled - Bad Health")
-plot!(ages, y_coh[:, 1, 2]+pen, label="Low Skilled - Average")
-plot!(ages, y_coh[:, 2, 0]+pen, label="High Skilled - Good Health")
-plot!(ages, y_coh[:, 2, 1]+pen, label="High Skilled - Bad Health")
-plot!(ages, y_coh[:, 2, 2]+pen, label="High Skilled - Average")
-plot!(ages, y_coh[:, 3, 0]+pen, label="Good Health")
-plot!(ages, y_coh[:, 3, 1]+pen, label="Bad Health")
-plot!(ages, y_coh[:, 3, 2]+pen, label="Average")
-
