@@ -1,4 +1,4 @@
-include("general_utils.jl")
+using DynamicProgrammingUtils
 using Roots
 
 # the first order condition
@@ -189,7 +189,7 @@ function solve_household()
 
                     # write screen output in case of a problem
                     # check for borrowing constraint
-                    if(x_root < 0.0)
+                    if (x_root < 0.0)
                         x_root = 0.0
                         wage = w*eff[ij]*theta[ip]*eta[is]
                         available = (1.0+r)*a[ia] + pen[ij]
@@ -198,7 +198,7 @@ function solve_household()
                         else
                             global lab_com = 0.0
                         end
-                        cons_com = max( (available + wage*lab_com) , 1e-10)
+                        global cons_com = max( (available + wage*lab_com) , 1e-10)
                     end
 
                     # copy decisions
@@ -343,4 +343,5 @@ function aggregation()
     @. cv_l = sqrt(cv_l - l_coh^2)/max(l_coh, 1e-10)
     @. cv_h = sqrt(cv_h - h_coh^2)/max(h_coh, 1e-10)
 
+    return
 end 

@@ -1,6 +1,7 @@
 include("prog10_2_utils.jl")
 
 using OffsetArrays
+using Plots 
 
 # number of years the household retires
 global JR = 45
