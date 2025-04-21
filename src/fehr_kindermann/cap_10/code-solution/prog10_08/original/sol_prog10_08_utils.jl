@@ -80,6 +80,8 @@ function initialize()
     global eff 
     global pen 
     global dist_m
+    global pi 
+    global eta
     global pi_m 
     global varrho_m
     global a
@@ -158,6 +160,8 @@ end
 
 # determines the solution to the household optimization problem
 function solve_household()
+    global cons_com
+    global lab_com
 
     # get decision in the last period of life
     for ia in 0:NA
