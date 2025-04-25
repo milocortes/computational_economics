@@ -34,7 +34,7 @@ global NP = 2
 global NS = 5
 
 # number of points on the asset grid
-global NA = 400
+global NA = 100
 
 # household preference parameters
 global gamma = 0.50
