@@ -4,67 +4,30 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 9a0808d0-9e04-42c2-836c-82ba5befc2c7
+# ╔═╡ c7bb2adb-2bd0-4694-856c-c08721566263
 begin
-	
-	using OffsetArrays
-	using Plots 
-	
-	global TT = 24
-	global JJ = 3
-	global n_p = OffsetArray(zeros(TT+1), 0:TT);
-	global m = OffsetArray(zeros(JJ, TT+1), 1:JJ,0:TT);
+	using Plots
+	using PlutoUI
+	psi = [1.00000000, 0.98972953, 0.98185396, 0.97070373, 0.95530594, 0.93417914,0.90238714, 0.83653436, 0.71048182, 0.52669353, 0.31179803, 0.00000000, 0.00000000, 0.00000000,0.00000000,0.00000000,0.00000000]
+
+	psi_new = min.(psi*1.05,1.0)
+	plot(20:5:100, psi, label = "Baseline", title = "Incremento de tasas de supervivencia en 10%", xlabel="Edad", ylabel="Tasas de supervivencia")
+	plot!(20:5:100, min.(psi_new, 1.0), label = "Experimento")
 end
 
-# ╔═╡ 59d7d2fe-2167-11f0-2254-ff394aa866c1
+# ╔═╡ 4741e222-2222-11f0-35e1-5126f731b203
 md"""
-# Understanding Demographic Evolution
-## Sin riesgo de longevidad
-Por simplicidad, se asume que los hogares viven 3 periodos. En cada periodo sucesivo $t$ nace un nuevo cohorte, donde $N_t$ es el cohorte que crece a una tasa $n_{p,t}$.
+# Experimento : Envejecimiento
+
+## Crecimiento poblacional y envejecimiento
+En cada periodo sucesivo $t$ nace un nuevo cohorte, donde $N_t$ es el cohorte que crece a una tasa $n_{p,t}$.
 
 ```math
 	N_t = (1+n_{p,t})N_{t-1}
 ```
 
-En el periodo $t$ el tamaño de la población es  $N_t + N_{t-1} + N_{t-2}$. Se asume que los hogares trabajan en los primeros dos periodos de su vida y se retiran en el tercero. Así $N_t + N_{t-1}$ es el tamaño de la fuerza de trabajo total en $t$.
-"""
-
-# ╔═╡ 2028fc5a-0966-418d-9470-fcae29d7df4e
-# calculates year at which age ij agent is ijp
-function year(it, ij, ijp)
-
-    year_val = it + ijp - ij
-
-    if (it == 0 || year_val <= 0)
-        year_val = 0
-    end
-    if (it == TT || year_val >= TT)
-        year_val = TT
-    end
-
-    return year_val
-end 
-
-# ╔═╡ a57f0b2d-8717-48bf-b5af-cdb6ef5b6ba1
-begin
-	n_p .= 0.2
-	# size of cohorts in specific year
-	for it in 0:TT
-		m[1, it] = 1.0
-		itm = year(it, 2, 1)
-		for ij in 2:JJ
-			m[ij, it] = m[ij-1, itm]/(1.0 + n_p[it])
-		end
-	end
-	m
-end
-
-# ╔═╡ 08d91b43-43de-487a-b81c-e0565230ec48
-md"""
-## Con riesgo de longevidad
 Cuando hay riesgo de longevidad, los hogares que entran al mercado laboral en el periodo $t$ alcanzan la adultez con certeza (i.e la probabilidad de supervivencia del primer periodo es igual a $\psi_{1,t}= 1.0$). 
 
-Después de trabajar en el primer periodo, los hogares sobreviven con probabilidad $\psi_{2,t+1} = 1-q_{1,t}$ del periodo 1 al periodo 2. Condicional a haber sobrevivido al segundo periodo laboral, el hogar alcanzará la edad de retiro con probabilidad $\psi_{3,t+2} = 1 - q_{2,t+1}$. Dado que el periodo de vida está restringido a 3 periodos, $\psi_{4, t+3} = 0$
 
 Dado que el número de miembros de un cohorte declina con el aumento de la edad, definimos el tamaño del cohorte de edad $j$ en el periodo $t$ como:
 
@@ -82,195 +45,47 @@ m_{1,t} = 1
 m_{j,t} = \dfrac{\psi_{j,t}}{1+n_{p,t}} \cdot m_{j-1, t-1}
 ```
 
-Los hogares pueden morir antes de la duración de vida $j$ y dejan herencias no intencionadas. Estas herencias son transferidas a los agentes sobrevivientes de acuerdo a un esquema de reparto. Definimos $b_{j,t}$ la herencia no intencionada de un agente de edad $j$ que recibe en el periodo $t$. Este ingreso adicional se agrega como un ingreso a la restricción presupuestaria.
+## Ejercicio
 
-Se emplea un esquema de distribución 
-```math
-\Gamma_{j,t+j-1} = \dfrac{\omega_{b,j}}{\sum_{i=1}^J \omega_{b,i} m_{i, t+j-1}} 
-```
-
-donde el vector $\omega$ se especifica exogenamente.
-
-La cantidad por cohorte de las herencias no intencionadas se calcula como
-
-```math
-b_{j,t} = \Gamma_{j,t} BQ_t
-```
-
-donde $BQ_t$ define las herencias agregadas en el periodo $t$.
+Se incrementan en 5% las tasas de supervivencia de los cohortes.
 """
 
-# ╔═╡ 40d0df45-8f12-4afd-bfa5-f942f17b8e95
-begin
-	global m_risk = OffsetArray(zeros(JJ, TT+1), 1:JJ,0:TT);
-	for param = [:psi, :beq, :GAM]
-		@eval global $param = OffsetArray(zeros(JJ, TT+1), 1:JJ,0:TT)
-	end
-	global omega_b = zeros(JJ)
-
-end
-
-# ╔═╡ 30e6e18d-d25c-4511-b769-3f17f027b705
-begin
-	# set life probs
-	psi[1, :] .= 1.0
-	psi[2, :] .= 0.85
-	psi[3, :] .= 0.80
-	
-	# set bequest distribution
-	omega_b[1] = 0.5
-	omega_b[2] = 0.5
-	omega_b[3] = 0.0
-end
-
-# ╔═╡ 51ac997c-ec05-4673-b629-b88db7522e9d
-begin
-	# size of cohorts and bequest distribution in specific year
-	for it in 0:TT
-		m_risk[1, it] = 1.0
-		itm = year(it, 2, 1)
-		for ij in 2:JJ
-			m_risk[ij, it] = m_risk[ij-1, itm]*psi[ij, it]/(1.0 + n_p[it])
-		end
-
-		GAM_total = omega_b[1]
-		for ij in 2:JJ
-			GAM_total = GAM_total + omega_b[ij]*m_risk[ij, it]
-		end
-
-		for ij in 1:JJ
-			GAM[ij, it] = omega_b[ij]/GAM_total
-		end
-	end
-end
-
-# ╔═╡ 473af638-b443-473e-baeb-99c1edd7fa25
-m_risk
-
-# ╔═╡ baf8a38f-b077-4b41-85c3-d6b130977a97
+# ╔═╡ 25551359-15d5-43f1-81b2-a309c5b86acc
 md"""
-# Two skill class economy
-## Sin riesgo de longevidad
+## Long-Run Eﬀect
 
-Se asume que hay dos tipos de trabajadores : low y high skills. Se asume que ambos grupos tienen las mismas preferencias, pero tienen distintas dotaciones capital humano.
+Se muestran los efectos para los cohortes después de incrementar las tasas de supervivencia.
 
-Asumimos que la tasa de crecimiento de la población es la misma para ambos grupos, pero sus pesos son diferentes. Por lo que tenemos que definir:
+Dado que los cohortes de edad avanzada viven más, el consumo de estos cohortes se incrementa.
+$(PlutoUI.LocalResource("salidas/long-run-consumption.jpg", :width => 600))
 
-```math
-0 < m_{1,1,t} < 1 
-```
-
-y 
-
-```math
-m_{2,1,t} = 1 - m_{1,1,t}
-```
-
-y para el resto de cohortes:
-
-```math
-m_{k,j,t} = \dfrac{m_{k,j-1,t-1}}{(1+n_{p,t})}
-```
-
+Para el caso de las horas trabajadas, los cohortes de edas tempranas incrementan la cantidad de horas trabajadas.
+$(PlutoUI.LocalResource("salidas/long-run-labour.jpg", :width => 600))
 """
 
-# ╔═╡ 7009d368-c72c-4771-8df4-340f2de4c1ef
-begin
-	global SS = 2
-	global m_skills = OffsetArray(zeros(JJ, SS, TT+1), 1:JJ, 1:SS, 0:TT);
-end
-
-# ╔═╡ cd57f051-ef30-4952-b4aa-f0abd6ca6784
-begin
-    # size of cohorts in specific year
-    for it in 0:TT
-        m_skills[1, 1, it] = 0.2
-        m_skills[1, 2, it] = 1.0-m_skills[1, 1, it]
-        itm = year(it, 2, 1)
-        for ij in 2:JJ
-            for ik in 1:SS
-                m_skills[ij,ik,it] = m_skills[ij-1,ik,itm]/(1+n_p[it])
-            end
-        end
-    end
-end
-
-# ╔═╡ 8e68cf2f-faf8-4f7c-ab6c-21cfc8fad1e1
-m[:,0]
-
-# ╔═╡ 3f0fea04-254b-4c48-a149-b9ab48e3ab39
-sum(m_skills[:,:,0], dims = 2)
-
-# ╔═╡ ec20b5f2-0d52-44d6-bc1c-1a92816abcf9
+# ╔═╡ 7373ac37-0d52-4f29-b5b5-45eed58939ff
 md"""
-## Con riesgo de longevidad
+## Transition Eﬀect
+
+La siguiente figura muestra los efectos de la transición al nuevo equilibrio sobre las variables macroeconómicas.
+$(PlutoUI.LocalResource("salidas/transition_path.jpg", :width => 1000))
+
+Como consecuencia del incremento en las tasas de supervivencia, la oferta laboral, el GDP y el consumo privado crecen en 4% con respecto al valor del primer equilibrio de estado estacionario. 
+
+El salario tiene una disminución del 0.5%, y la tasa de interés tiene un incremento marginal del 0.2%.
+
+La razón $\dfrac{\text{Pensiones}}{GDP}$ presentan un incremento marginal del 0.2% con respecto al baseline. 
 """
-
-# ╔═╡ b1d67992-24e6-4208-8fc9-065b0f185e21
-begin
-	global m_skill_risk = OffsetArray(zeros(JJ, SS, TT+1), 1:JJ, 1:SS, 0:TT);
-	global GAM_skill_risk = OffsetArray(zeros(JJ, SS, TT+1), 1:JJ, 1:SS, 0:TT);
-	global omega_b_skill_risk = omega_b/2;
-end
-
-# ╔═╡ 01ca14dc-e71f-4974-9773-16ad1d1c71b1
-begin
-	# size of cohorts and bequest distribution in specific year
-	for it in 0:TT
-        m_skill_risk[1, 1, it] = 0.2
-        m_skill_risk[1, 2, it] = 1.0-m_skill_risk[1, 1, it]
-        itm = year(it, 2, 1)
-
-		
-		for ij in 2:JJ
-			for ik in 1:SS
-				m_skill_risk[ij, ik, it] = m_skill_risk[ij-1, ik, itm]*psi[ij, it]/(1.0 + n_p[it])
-			end
-		end
-
-		GAM_total = omega_b[1]
-		
-		for ik in 1:SS
-			for ij in 2:JJ
-				GAM_total = GAM_total + omega_b[ij]*m_skill_risk[ij, ik, it]
-			end
-		end
-
-		for ik in 1:SS
-			for ij in 1:JJ
-				GAM_skill_risk[ij, ik, it] = omega_b[ij]/GAM_total/SS
-			end
-		end
-
-	end
-end
-
-# ╔═╡ 018682f5-66ac-4784-a026-d38c28cb98d0
-# Test cohorts weights
-m_risk[:,0]
-
-# ╔═╡ e6a7b188-fcf8-45b5-b095-331a0784cedb
-# Test cohorts weights
-sum(m_skill_risk[:,:,0], dims=2)
-
-# ╔═╡ e2594047-67be-4b03-a0af-84a23e35a4cd
-GAM[:,0]
-
-# ╔═╡ ff28dbe5-1599-4303-80a9-3ce1d0a22507
-sum(GAM_skill_risk[:,:,0],dims=2)
-
-# ╔═╡ 20a072c7-b818-41cf-9066-f35e67b9616c
-GAM_skill_risk[:,:,0]
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
-OffsetArrays = "~1.17.0"
 Plots = "~1.40.13"
+PlutoUI = "~0.7.23"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -279,7 +94,13 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "708c9ca0914a6ca200ef82008d308caba11b293f"
+project_hash = "24da560f6569b3433568a29bbf36dab11cd3d855"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "6e1d2a35f2f90a4bc7c2ed98079b2ba09c35b83a"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.3.2"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -536,6 +357,24 @@ git-tree-sha1 = "55c53be97790242c29031e5cd45e8ac296dadda3"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "8.5.0+0"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.5"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "b6d6bfdd7ce25b0f9b2f6b3dd56b2673a66c8770"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.5"
+
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
@@ -761,17 +600,6 @@ version = "1.1.3"
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
 
-[[deps.OffsetArrays]]
-git-tree-sha1 = "117432e406b5c023f665fa73dc26e79ec3630151"
-uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-version = "1.17.0"
-
-    [deps.OffsetArrays.extensions]
-    OffsetArraysAdaptExt = "Adapt"
-
-    [deps.OffsetArrays.weakdeps]
-    Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-
 [[deps.Ogg_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "887579a3eb005446d514ab7aeac5d1d027658b8f"
@@ -874,6 +702,12 @@ version = "1.40.13"
     IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
     ImageInTerminal = "d8c32880-2388-543b-8c61-d9f865259254"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
+git-tree-sha1 = "5152abbdab6488d5eec6a01029ca6697dff4ec8f"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.23"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -1062,6 +896,11 @@ version = "1.11.0"
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.11.3"
+
+[[deps.Tricks]]
+git-tree-sha1 = "6cae795a5a9313bbb4f60683f7263318fc7d1505"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.10"
 
 [[deps.URIs]]
 git-tree-sha1 = "cbbebadbcc76c5ca1cc4b4f3b0614b3e603b5000"
@@ -1394,27 +1233,9 @@ version = "1.4.1+2"
 """
 
 # ╔═╡ Cell order:
-# ╟─59d7d2fe-2167-11f0-2254-ff394aa866c1
-# ╠═9a0808d0-9e04-42c2-836c-82ba5befc2c7
-# ╠═2028fc5a-0966-418d-9470-fcae29d7df4e
-# ╠═a57f0b2d-8717-48bf-b5af-cdb6ef5b6ba1
-# ╠═08d91b43-43de-487a-b81c-e0565230ec48
-# ╠═40d0df45-8f12-4afd-bfa5-f942f17b8e95
-# ╠═30e6e18d-d25c-4511-b769-3f17f027b705
-# ╠═51ac997c-ec05-4673-b629-b88db7522e9d
-# ╠═473af638-b443-473e-baeb-99c1edd7fa25
-# ╟─baf8a38f-b077-4b41-85c3-d6b130977a97
-# ╠═7009d368-c72c-4771-8df4-340f2de4c1ef
-# ╠═cd57f051-ef30-4952-b4aa-f0abd6ca6784
-# ╠═8e68cf2f-faf8-4f7c-ab6c-21cfc8fad1e1
-# ╠═3f0fea04-254b-4c48-a149-b9ab48e3ab39
-# ╟─ec20b5f2-0d52-44d6-bc1c-1a92816abcf9
-# ╠═b1d67992-24e6-4208-8fc9-065b0f185e21
-# ╠═01ca14dc-e71f-4974-9773-16ad1d1c71b1
-# ╠═018682f5-66ac-4784-a026-d38c28cb98d0
-# ╠═e6a7b188-fcf8-45b5-b095-331a0784cedb
-# ╠═e2594047-67be-4b03-a0af-84a23e35a4cd
-# ╠═ff28dbe5-1599-4303-80a9-3ce1d0a22507
-# ╠═20a072c7-b818-41cf-9066-f35e67b9616c
+# ╟─4741e222-2222-11f0-35e1-5126f731b203
+# ╟─c7bb2adb-2bd0-4694-856c-c08721566263
+# ╟─25551359-15d5-43f1-81b2-a309c5b86acc
+# ╟─7373ac37-0d52-4f29-b5b5-45eed58939ff
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
