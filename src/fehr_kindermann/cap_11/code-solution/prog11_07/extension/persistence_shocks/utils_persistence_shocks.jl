@@ -65,7 +65,7 @@ function foc(x_in)
     wage = wn[it_com]*eff[ij_com]*eta[is_com]*varrho_m[ip_com]
 
     # calculate available resources
-    available = (1.0+rn[it_com])*a[ia_com]+ beq[ij_com, ip_com, it_com] + pen[ij_com, it_com] + v_ind
+    available = (1.0+rn[it_com])*a[ia_com]+ beq[ij_com, ip_com, it_com] + ip_com*pen[ij_com, it_com] + v_ind
 
     # determine labor
     if (ij_com < JR)
@@ -214,22 +214,38 @@ function initialize()
     # health stauts affects survival probabilities
     psi[:, 1, 0:TT] = chi*psi[:, 0, 0:TT]
 
+    #survival probabilities
+    psi[1:6, 0, 0:TT] .= 1.00000000
+    psi[7, 0, 0:TT] .= 0.98972953
+    psi[8, 0, 0:TT] .= 0.98185396
+    psi[9, 0, 0:TT] .= 0.97070373
+    psi[10, 0, 0:TT] .= 0.95530594
+    psi[11, 0, 0:TT] .= 0.93417914
+    psi[12, 0, 0:TT] .= 0.90238714
+    psi[13, 0, 0:TT] .= 0.83653436
+    psi[14, 0, 0:TT] .= 0.71048182
+    psi[15, 0, 0:TT] .= 0.52669353
+    psi[16, 0, 0:TT] .= 0.31179803
+    psi[17, 0, 0:TT] .= 0.00000000
+
+    # health stauts affects survival probabilities
+    psi[:, 1, 0:TT] = chi*psi[:, 0, 0:TT]
 #        psi(:,0:TT) = 1.0d0
 
     # set bequest distribution
-    omega[1] = 1.0/6.0
-    omega[2] = 1.0/6.0
-    omega[3] = 1.0/6.0
-    omega[4] = 1.0/6.0
-    omega[5] = 1.0/6.0
-    omega[6] = 1.0/6.0
-#        omega(7) = 1d0/9d0
-#        omega(8) = 1d0/9d0
-#        omega(9) = 1d0/9d0
-    omega[7:16] .= 0.0
+    omega[1] = 1.0/2.0
+    omega[2] = 1.0/2.0
+    #omega[3] = 1.0/9.0
+    #omega[4] = 1.0/9.0
+    #omega[5] = 1.0/9.0
+    #omega[6] = 1.0/9.0
+    #omega[7] = 1.0/9.0
+    #omega[8] = 1.0/9.0
+    #omega[9] = 1.0/9.0
+    omega[3:16] .= 0.0
 
     for it in 0:TT
-        m[1,0,it] = 0.9
+        m[1,0,it] = 0.54
         m[1,1,it] = 1 - m[1,0,it]
         GAM[1,0,it] = omega[1]
         GAM[1,1,it] = omega[1]
@@ -275,8 +291,8 @@ function initialize()
     eff[1] = 1.0
 
     # initialize health shock
-    dist_m[0] = 0.9
-    dist_m[1] = 0.1
+    dist_m[0] = 0.54
+    dist_m[1] = 0.46
     #theta[1]   = -sqrt(sigma_theta)
     #theta[2]   = sqrt(sigma_theta)
     #theta .= exp.(theta)
@@ -363,7 +379,7 @@ function solve_household(ij_in, it_in)
     for ia in 0:NA
         for ip in 0:NM
             aplus[JJ, ia, ip, :, it] .= 0.0
-            c[JJ, ia, ip, :, it] .= ((1.0+rn[it])*a[ia]+ beq[JJ, ip, it] .+ pen[JJ, it] .+ v[JJ, ia, ip, :, it])/p[it]#
+            c[JJ, ia, ip, :, it] .= ((1.0+rn[it])*a[ia]+ beq[JJ, ip, it] .+ ip*pen[JJ, it] .+ v[JJ, ia, ip, :, it])/p[it]#
             l[JJ, ia, ip, :, it] .= 0.0
             VV[JJ, ia, ip, :, it] .= valuefunc(0.0, c[JJ, ia, ip, 1, it],l[JJ, ia, ip, 1, it], JJ, ip, 1, it)
         end
@@ -415,7 +431,7 @@ function solve_household(ij_in, it_in)
                     global it_com = it
 
                     # solve the household problem using rootfinding
-                    x_root = fzero(foc, x_in)
+                    x_root = fzero(foc, x_in, xtol=1e-15)
 
                     # write screen output in case of a problem
                     #if(check)write(*,'(a, 5i4)')'ERROR IN ROOTFINDING : ', ij, ia, ip, is, it
@@ -425,7 +441,7 @@ function solve_household(ij_in, it_in)
                         x_root = 0.0
                         wage = wn[it]*eff[ij]*varrho_m[ip]*eta[is]
                         v_ind = v[ij, ia, ip, is, it]
-                        available = (1.0+rn[it])*a[ia] + beq[ij, ip, it] + pen[ij, it] + v_ind
+                        available = (1.0+rn[it])*a[ia] + beq[ij, ip, it] + ip*pen[ij, it] + v_ind
                         if (ij < JR)
                             global lab_com = min( max(nu-(1.0-nu)*available/wage , 0.0) , 1.0-1e-10)
                         else
@@ -638,7 +654,7 @@ function government(it)
     PP[it] = 0.0
     for ij in JR:JJ
         for ip in 0:NM
-            PP[it] = PP[it] + pen[ij, it]*m[ij, ip, it]
+            PP[it] = PP[it] + ip*pen[ij, it]*m[ij, ip, it]
         end
     end
 

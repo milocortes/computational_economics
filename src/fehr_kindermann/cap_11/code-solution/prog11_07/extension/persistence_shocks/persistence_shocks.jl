@@ -33,7 +33,7 @@ global NM = 1
 global NS = 5
 
 # number of points on the asset grid
-global NA = 100
+global NA = 200
 
 # household preference parameters
 global gamma = 0.50
@@ -58,7 +58,7 @@ global Omega2 = 1.10
 
 # size of the asset grid
 global a_l    = 0.0
-global a_u    = 50.0
+global a_u    = 30.0
 global a_grow = 0.05
 
 # demographic parameters
