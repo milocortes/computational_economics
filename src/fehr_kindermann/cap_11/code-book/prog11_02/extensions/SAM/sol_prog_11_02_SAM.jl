@@ -16,6 +16,7 @@ include("utils_sol_prog_11_02_SAM.jl")
 using OffsetArrays
 using Plots
 using DataFrames
+using CSV 
 
 # number of transition periods
 global TT = 40
@@ -33,7 +34,7 @@ global NP = 2
 global NS = 5
 
 # number of points on the asset grid
-global NA = 100
+global NA = 500
 
 # household preference parameters
 global gamma = 0.50
@@ -61,7 +62,7 @@ global n_p   = (1.0+0.01)^5-1e0
 
 # simulation parameters
 global damp    = 0.30
-global sig     = 1e-4
+global sig     = 1e-5
 global itermax = 50
 
 # macroeconomic variables
@@ -192,6 +193,25 @@ labour_market
 good_market
 gov_accounts
 pension_system
+
+data = ["Producción" NaN NaN NaN NaN CC[0] NaN GG[0] II[0]  NaN;
+"Salarios" w[0]*LL[0]  NaN NaN NaN NaN NaN NaN NaN NaN;
+"Ganancias" (r[0]+delta)KK[0] NaN NaN NaN NaN NaN NaN NaN NaN;
+"Pensiones" NaN NaN NaN NaN w[0]*LL[0]*taup[0]  NaN NaN NaN NaN;
+"Hogares" NaN w[0]*LL[0]*(1-tauw[0]) r[0]*AA[0]*(1-taur[0]) sum(pen[:,0].*m[:,0]) NaN NaN NaN NaN NaN;
+"Gobierno (Ingresos)" NaN w[0]*LL[0]*taur[0] r[0]*AA[0]*taur[0] NaN tauc[0]*CC[0] NaN NaN NaN NaN;
+"Gobierno (Gasto)" NaN NaN NaN NaN NaN GG[0]+(1+r[0])*BB[0] - (1+n_p)*BB[0]  NaN  NaN  NaN;
+"Ahorro-Inversión" NaN NaN r[0]*AA[0] NaN r[0]*AA[0]*taur[0] NaN (r[0] - n_p)*BB[0] NaN NaN;
+"Total" NaN NaN NaN NaN NaN NaN NaN NaN NaN]
+
+
+SAM = DataFrame(
+     data,
+    ["", "Producción", "Salarios", "Ganancias", "Pensiones", "Hogares", "Gobierno (Ingresos)", "Gobierno (Gasto)", "Ahorro-Inversión", "Total"]
+
+)
+
+CSV.write("outputs/sam_olg.csv", SAM)
 
 # set reform parameter (adjsust accordingly for Figure 11.7)
 kappa[1:TT] .= 0.0
