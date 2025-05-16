@@ -34,7 +34,7 @@ global NP = 2
 global NS = 5
 
 # number of points on the asset grid
-global NA = 500
+global NA = 100
 
 # household preference parameters
 global gamma = 0.50
@@ -198,10 +198,10 @@ data = ["Producción" NaN NaN NaN NaN CC[0] NaN GG[0] II[0]  NaN;
 "Salarios" w[0]*LL[0]  NaN NaN NaN NaN NaN NaN NaN NaN;
 "Ganancias" (r[0]+delta)KK[0] NaN NaN NaN NaN NaN NaN NaN NaN;
 "Pensiones" NaN NaN NaN NaN w[0]*LL[0]*taup[0]  NaN NaN NaN NaN;
-"Hogares" NaN w[0]*LL[0]*(1-tauw[0]) r[0]*AA[0]*(1-taur[0]) sum(pen[:,0].*m[:,0]) NaN NaN NaN NaN NaN;
-"Gobierno (Ingresos)" NaN w[0]*LL[0]*taur[0] r[0]*AA[0]*taur[0] NaN tauc[0]*CC[0] NaN NaN NaN NaN;
+"Hogares" NaN w[0]*LL[0]*(1-tauw[0]) (r[0]+delta)*KK[0]*(1-taur[0]) sum(pen[:,0].*m[:,0]) NaN NaN NaN NaN NaN;
+"Gobierno (Ingresos)" NaN w[0]*LL[0]*taur[0] (r[0]+delta)*KK[0]*taur[0] NaN tauc[0]*CC[0] NaN NaN NaN NaN;
 "Gobierno (Gasto)" NaN NaN NaN NaN NaN GG[0]+(1+r[0])*BB[0] - (1+n_p)*BB[0]  NaN  NaN  NaN;
-"Ahorro-Inversión" NaN NaN r[0]*AA[0] NaN r[0]*AA[0]*taur[0] NaN (r[0] - n_p)*BB[0] NaN NaN;
+"Ahorro-Inversión" NaN NaN NaN NaN r[0]*AA[0] (BB[0]*r[0] +  (1+r[0])*BB[0]*n_p) (r[0] - n_p)*BB[0] NaN NaN;
 "Total" NaN NaN NaN NaN NaN NaN NaN NaN NaN]
 
 
