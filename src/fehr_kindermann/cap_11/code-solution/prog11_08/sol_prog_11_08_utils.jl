@@ -15,11 +15,20 @@ function year(it, ij, ijp)
     end
 
     return year
-end 
+end
 
 
 
 function foc(x_in)
+    global ij_com
+    global ia_com
+    global ip_com
+    global is_com
+    global it_com
+    global cons_com
+    global lab_com
+    global ir_com
+    global epplus_com
 
     # calculate tomorrows assets
     a_plus  = x_in
@@ -57,7 +66,7 @@ function foc(x_in)
 
     # calculate linear interpolation for future part of first order condition
     ial, iar, varphi_a = linint_Grow(a_plus, a_l, a_u, a_grow, NA, ial_v, iar_v, varphi_v)
-    
+
     irl, irr, varphi_r =  linint_Grow(epplus_com, ep_l, ep_u, ep_grow, NR, ial_ep, iar_ep, varphi_ep)
 
 
@@ -66,7 +75,7 @@ function foc(x_in)
     # calculate first order condition for consumption
     return margu(cons_com, lab_com, it_com)^(-gamma) - tomorrow
 
-end 
+end
 
 
 # calculates marginal utility of consumption
@@ -78,7 +87,7 @@ function margu(cons, lab, it)
 
     return nu*(c_help^nu*(1.0-l_help)^(1.0-nu))^egam/(p[it]*c_help)
 
-end 
+end
 
 # calculates the value function
 function valuefunc(a_plus, ep_plus, cons, lab, ij, ip, is, it)
@@ -104,7 +113,7 @@ function valuefunc(a_plus, ep_plus, cons, lab, ij, ip, is, it)
     # add todays part and discount
     return (c_help^nu*(1.0-l_help)^(1.0-nu))^egam/egam + beta*valuefunc
 
-end 
+end
 
 
 
@@ -155,10 +164,30 @@ end
 
 
 # initializes the remaining model parameters and variables
-function initialize
+function initialize()
 
     println("INITIAL EQUILIBRIUM")
     println("ITER     H     K/Y     C/Y     I/Y       r       w        DIFF")
+    ## Population parameters
+    global m, pop
+
+    ## Asset arrays
+    global a, a_plus
+
+    ## Shock process parameters
+    global eff, dist_theta, theta, pi, eta
+
+    ## Taxes
+    global tax, tauc, tauw, taur, taup
+
+    ## Pensions
+    global kappa, pen, ep, penp, lambda
+
+    ## Goverment parameters
+    global gy, by
+
+    ## Aggregated parameters
+    global KK, LL, YY, II, GG, BB
 
     # set up population structure
     for ij in 1:JJ
@@ -170,7 +199,6 @@ function initialize
     end
 
     # initialize asset and pension grid
-
     grid_Cons_Grow(a, NA+1, a_l, a_u, a_grow)
     grid_Cons_Grow(ep, NR+1, ep_l, ep_u, ep_grow)
 
@@ -179,8 +207,8 @@ function initialize
         for ir in 0:NR
             for ip in 1:NP
                 for is in 1:NS
-                    aplus[ij, :, ir, ip, is, 0] = max(a[:]/2.0, a[1]/2.0) # max(a[:]/2.0, a[1]/2.0)
-                    c[ij, :, ir, ip, is, 0] = max(a[:]/2.0, a[1]/2.0)
+                    @. aplus[ij, :, ir, ip, is, 0] = max(a[:]/2.0, a[1]/2.0) # max(a[:]/2.0, a[1]/2.0)
+                    @. c[ij, :, ir, ip, is, 0] = max(a[:]/2.0, a[1]/2.0)
                 end
             end
         end
@@ -196,41 +224,41 @@ function initialize
     eff[7] = 1.9692
     eff[8] = 1.9392
     eff[9] = 1.9007
-    eff[JR:JJ] = 0.0
+    eff[JR:JJ] .= 0.0
 
     # initialize fixed effect
-    dist_theta = 1.0/Float64(NP)
+    dist_theta .= 1.0/Float64(NP)
     theta[1]   = -sqrt(sigma_theta)
     theta[2]   = sqrt(sigma_theta)
-    theta = exp(theta)
+    theta .= exp.(theta)
 
     # calculate the shock process
     pi, eta = rouwenhorst(NS, rho, sigma_eps, 0.0);
     eta = exp.(eta)
 
     # tax and transfers
-    tax   = 2
-    tauc  = 0.075
-    tauw  = 0.2088
-    taur  = 0.2088
-    taup  = 0.12
-    kappa = 0.50
+    tax   .= 2
+    tauc  .= 0.075
+    tauw  .= 0.2088
+    taur  .= 0.2088
+    taup  .= 0.12
+    kappa .= 0.50
     #lambda = 1d0
-    lambda = 0.0
-    penp = 0.0
+    lambda .= 0.0
+    penp .= 0.0
     gy    = 0.19
     by    = 0.60/5.0
 
     # initial guesses for macro variables
-    KK = 5.14
-    LL = 5.34
-    YY = 8.42
-    II = (n_p+delta)*KK
-    INC = 0.72
+    KK .= 5.14
+    LL .= 5.34
+    YY .= 8.42
+    II .= (n_p+delta)*KK
+    INC .= 0.72
 
-    GG = gy*YY[0]
-    BB = by*YY[0]
-    PP = 0.0
+    GG .= gy*YY[0]
+    BB .= by*YY[0]
+    PP .= 0.0
 
 end
 
@@ -254,14 +282,14 @@ function solve_household(ij_in, it_in)
     it = year(it_in, ij_in, JJ)
 
     for ia in 0:NA
-        aplus[JJ, ia, :, :, :, it] = 0.0
-        epplus[JJ, ia, :, :, :, it] = 0.0
-        l[JJ, ia, :, :, :, it] = 0.0
-        
+        aplus[JJ, ia, :, :, :, it] .= 0.0
+        epplus[JJ, ia, :, :, :, it] .= 0.0
+        l[JJ, ia, :, :, :, it] .= 0.0
+
         for ir in 0:NR
             penp[JJ, it, ir] = kappa[it]*INC[it]*ep[ir]
-            c[JJ, ia, ir, :, :, it] = ((1.0+rn[it])*a[ia] + penp[JJ, it, ir] + v[JJ, ia, ir, :, :, it])/p[it]
-            VV[JJ, ia, ir, :, :, it] = valuefunc(0.0, 0.0, c[JJ, ia, ir, 1, 1, it], l[JJ, ia, ir, 1, 1, it], JJ, 1, 1, it)
+            @. c[JJ, ia, ir, :, :, it] .= ((1.0+rn[it])*a[ia] + penp[JJ, it, ir] + v[JJ, ia, ir, :, :, it])/p[it]
+            VV[JJ, ia, ir, :, :, it] .= valuefunc(0.0, 0.0, c[JJ, ia, ir, 1, 1, it], l[JJ, ia, ir, 1, 1, it], JJ, 1, 1, it)
         end
     end
 
@@ -285,11 +313,11 @@ function solve_household(ij_in, it_in)
 
             # determine decision for zero assets at retirement without pension
             if (ij >= JR && ia == 0 && kappa[it] <= 1e-10)
-                aplus[ij, ia, :, :, :, it] = 0.0
-                epplus[ij, ia, :, :, :, it] = 0.0
-                c[ij, ia, :, :, :, it] = 0.0
-                l[ij, ia, :, :, :, it] = 0.0
-                VV[ij, ia, :, :, :, it] = valuefunc(0.0, 0.0, 0.0, 0.0, ij, 1, 1, it)
+                aplus[ij, ia, :, :, :, it] .= 0.0
+                epplus[ij, ia, :, :, :, it] .= 0.0
+                c[ij, ia, :, :, :, it] .= 0.0
+                l[ij, ia, :, :, :, it] .= 0.0
+                VV[ij, ia, :, :, :, it] .= valuefunc(0.0, 0.0, 0.0, 0.0, ij, 1, 1, it)
                 continue
             end
 
@@ -332,16 +360,16 @@ function solve_household(ij_in, it_in)
                         epplus[ij, ia, ir, ip, is, it] = epplus_com
                         c[ij, ia, ir, ip, is, it] = cons_com
                         l[ij, ia, ir, ip, is, it] = lab_com
-                        VV[ij, ia, ir, ip, is, it] = valuefunc[x_root, epplus_com, cons_com, lab_com, ij, ip, is, it]
+                        VV[ij, ia, ir, ip, is, it] = valuefunc(x_root, epplus_com, cons_com, lab_com, ij, ip, is, it)
                     end
 
                     # copy decision in retirement age
                     if(ij >= JR)
-                        aplus[ij, ia, ir, :, :, it] = aplus[ij, ia, ir, 1, 1, it]
-                        epplus[ij, ia, ir, :, :, it] = epplus[ij, ia, ir, 1, 1, it]
-                        c[ij, ia, ir, :, :, it] = c[ij, ia, ir, 1, 1, it]
-                        l[ij, ia, ir, :, :, it] = l[ij, ia, ir, 1, 1, it]
-                        VV[ij, ia, ir, :, :, it] = VV[ij, ia, ir, 1, 1, it]
+                        aplus[ij, ia, ir, :, :, it] .= aplus[ij, ia, ir, 1, 1, it]
+                        epplus[ij, ia, ir, :, :, it] .= epplus[ij, ia, ir, 1, 1, it]
+                        c[ij, ia, ir, :, :, it] .= c[ij, ia, ir, 1, 1, it]
+                        l[ij, ia, ir, :, :, it] .= l[ij, ia, ir, 1, 1, it]
+                        VV[ij, ia, ir, :, :, it] .= VV[ij, ia, ir, 1, 1, it]
                     end
                 end
             end
@@ -365,8 +393,8 @@ function interpolate(ij, it)
                     # calculate RHS and EV
                     RHS[ij, ia, ir, ip, is, it] = 0.0
                     EV[ij, ia, ir, ip, is, it] = 0.0
-              
-                    for is_p = 1, NS
+
+                    for is_p in 1:NS
                         chelp = max(c[ij, ia, ir, ip, is_p, it],1e-10)
                         lhelp = max(l[ij, ia, ir, ip, is_p, it],1e-10)
                         RHS[ij, ia, ir, ip, is, it] = RHS[ij, ia, ir, ip, is, it] + pi[is, is_p]*margu(chelp, lhelp, it)
@@ -389,26 +417,25 @@ function get_distribution(it)
     itm = year(it, 2, 1)
 
     # set distribution to zero
-    phi[:, :, :, :, :, it] = 0.0
+    phi[:, :, :, :, :, it] .= 0.0
 
     # get initial distribution in age 1
-    for ip = 1, NP
-        phi(1, 0, 0, ip, is_initial, it) = dist_theta(ip)
+    for ip in 1:NP
+        phi[1, 0, 0, ip, is_initial, it] = dist_theta[ip]
     end
 
     # successively compute distribution over ages
-    for ij = 2, JJ
+    for ij = 2:JJ
 
         # iterate over yesterdays gridpoints
-        for ia = 0, NA
-            for ir = 0, NR
-                for ip = 1, NP
-                    for is = 1, NS
+        for ia in 0:NA
+            for ir in 0:NR
+                for ip in 1:NP
+                    for is in 1:NS
 
                         # interpolate yesterday's savings decision
-                        call linint_Grow(aplus(ij-1, ia, ir, ip, is, itm), a_l, a_u, a_grow, NA, ial, iar, varphi_a)
-                        call linint_Grow(epplus(ij-1, ia, ir, ip, is, itm), ep_l, ep_u, &
-                                                                                  ep_grow, NR, irl, irr, varphi_r)
+                        ial, iar, varphi_a = linint_Grow(aplus[ij-1, ia, ir, ip, is, itm], a_l, a_u, a_grow, NA, ial_v, iar_v, varphi_v)
+                        irl, irr, varphi_r = linint_Grow(epplus[ij-1, ia, ir, ip, is, itm], ep_l, ep_u, ep_grow, NR, ial_ep, iar_ep, varphi_ep)
 
                         # restrict values to grid just in case
                         ial = min(ial, NA)
@@ -419,15 +446,11 @@ function get_distribution(it)
                         varphi_r = max(0.0, min(varphi_r, 1.0))
 
                         # redistribute households
-                        for is_p = 1, NS
-                            phi(ij, ial, irl, ip, is_p, it) = phi(ij, ial, irl, ip, is_p, it) + &
-                                            pi(is, is_p)*varphi_a*varphi_r*phi(ij-1, ia, ir, ip, is, itm)
-                            phi(ij, ial, irr, ip, is_p, it) = phi(ij, ial, irr, ip, is_p, it) + &
-                                            pi(is, is_p)*varphi_a*(1.0-varphi_r)*phi(ij-1, ia, ir, ip, is, itm)
-                            phi(ij, iar, irl, ip, is_p, it) = phi(ij, iar, irl, ip, is_p, it) + &
-                                            pi(is, is_p)*(1.0-varphi_a)*varphi_r*phi(ij-1, ia, ir, ip, is, itm)
-                            phi(ij, iar, irr, ip, is_p, it) = phi(ij, iar, irr, ip, is_p, it) + &
-                                      pi(is, is_p)*(1.0-varphi_a)*(1.0-varphi_r)*phi(ij-1, ia, ir, ip, is, itm)
+                        for is_p in 1:NS
+                            phi[ij, ial, irl, ip, is_p, it] = phi[ij, ial, irl, ip, is_p, it] + pi[is, is_p]*varphi_a*varphi_r*phi[ij-1, ia, ir, ip, is, itm]
+                            phi[ij, ial, irr, ip, is_p, it] = phi[ij, ial, irr, ip, is_p, it] + pi[is, is_p]*varphi_a*(1.0-varphi_r)*phi[ij-1, ia, ir, ip, is, itm]
+                            phi[ij, iar, irl, ip, is_p, it] = phi[ij, iar, irl, ip, is_p, it] + pi[is, is_p]*(1.0-varphi_a)*varphi_r*phi[ij-1, ia, ir, ip, is, itm]
+                            phi[ij, iar, irr, ip, is_p, it] = phi[ij, iar, irr, ip, is_p, it] + pi[is, is_p]*(1.0-varphi_a)*(1.0-varphi_r)*phi[ij-1, ia, ir, ip, is, itm]
                         end
                     end
                 end
@@ -441,44 +464,40 @@ end
 # function for calculating quantities in a certain
 function aggregation(it)
 
-    implicit none
-    integer, intent(in) :: it
-    integer :: ij, ia, ir, ip, is, itp
-    real*8 :: LL_old, m_coh(JJ)
-
     # get tomorrow's year
     itp = year(it, 1, 2)
     LL_old = LL[it]
+    m_coh = zeros(JJ)
 
     # calculate cohort aggregates
-    c_coh(:, it)  = 0.0
-    l_coh(:, it)  = 0.0
-    y_coh(:, it)  = 0.0
-    a_coh(:, it)  = 0.0
-    pen(:, it)    = 0.0
-    VV_coh(:, it) = 0.0
-    m_coh(:)      = 0.0
-    FLC(:,it)     = 0.0
+    c_coh[:, it]  .= 0.0
+    l_coh[:, it]  .= 0.0
+    y_coh[:, it]  .= 0.0
+    a_coh[:, it]  .= 0.0
+    pen[:, it]    .= 0.0
+    VV_coh[:, it] .= 0.0
+    m_coh[:]      .= 0.0
+    FLC[:,it]     .= 0.0
 
-    for ij = 1, JJ
-        for ia = 0, NA
-            for ir = 0, NR
-                for ip = 1, NP
-                    for is = 1, NS
-                        c_coh(ij, it) = c_coh(ij, it) + c(ij, ia, ir, ip, is, it)*phi(ij, ia, ir, ip, is, it)
-                        l_coh(ij, it) = l_coh(ij, it) + l(ij, ia, ir, ip, is, it)*phi(ij, ia, ir, ip, is, it)
-                        y_coh(ij, it) = y_coh(ij, it) + eff(ij)*theta(ip)*eta(is)*l(ij, ia, ir, ip, is, it) &
-                                                                                *phi(ij, ia, ir, ip, is, it)
-                        a_coh(ij, it) = a_coh(ij, it) + a(ia)*phi(ij, ia, ir, ip, is, it)
-                        pen(ij, it) = pen(ij, it) +  penp(ij, it, ir)*phi(ij, ia, ir, ip, is, it)
+    for ij in 1:JJ
+        for ia in 0:NA
+            for ir in 0:NR
+                for ip in 1:NP
+                    for is in 1:NS
+                        c_coh[ij, it] = c_coh[ij, it] + c[ij, ia, ir, ip, is, it]*phi[ij, ia, ir, ip, is, it]
+                        l_coh[ij, it] = l_coh[ij, it] + l[ij, ia, ir, ip, is, it]*phi[ij, ia, ir, ip, is, it]
+                        y_coh[ij, it] = y_coh[ij, it] + eff[ij]*theta[ip]*eta[is]*l[ij, ia, ir, ip, is, it]*phi[ij, ia, ir, ip, is, it]
+                        a_coh[ij, it] = a_coh[ij, it] + a[ia]*phi[ij, ia, ir, ip, is, it]
+                        pen[ij, it] = pen[ij, it] +  penp[ij, it, ir]*phi[ij, ia, ir, ip, is, it]
                         # exclude households who dies
-                        if(ij >= JR .and. ia == 0 .and. (kappa(0) <= 1e-10 .or. kappa(1) <= 1e-10))then
-                            cycle
+                        if (ij >= JR && ia == 0 && (kappa[0] <= 1e-10 || kappa[1] <= 1e-10))
+                            continue
                         end
-                        if(aplus(ij, ia, ir, ip, is, it) < 1d-4)FLC(ij, it) = FLC(ij, it) + &
-                                                                                phi(ij, ia, ir, ip, is, it)
-                        VV_coh(ij, it) = VV_coh(ij, it) + VV(ij, ia, ir, ip, is, it)*phi(ij, ia, ir, ip, is, it)
-                        m_coh(ij)      = m_coh(ij) + phi(ij, ia, ir, ip, is, it)
+                        if (aplus[ij, ia, ir, ip, is, it] < 1e-4)
+                            FLC[ij, it] = FLC[ij, it] + phi[ij, ia, ir, ip, is, it]
+                        end
+                        VV_coh[ij, it] = VV_coh[ij, it] + VV[ij, ia, ir, ip, is, it]*phi[ij, ia, ir, ip, is, it]
+                        m_coh[ij]     = m_coh[ij] + phi[ij, ia, ir, ip, is, it]
                     end
                 end
             end
@@ -486,8 +505,8 @@ function aggregation(it)
     end
 
     # normalize VV_coh (because hh excluded)
-    VV_coh(:, it) = VV_coh(:, it)/m_coh(:)
-    FLC(:, it) = FLC(:, it)/m_coh(:)
+    VV_coh[:, it] = VV_coh[:, it]./m_coh[:]
+    FLC[:, it] = FLC[:, it]./m_coh[:]
 
     # calculate aggregate quantities
     CC[it] = 0.0
@@ -495,18 +514,20 @@ function aggregation(it)
     HH[it] = 0.0
     AA[it] = 0.0
     workpop[it] = 0.0
-    for ij = 1, JJ
-        CC[it] = CC[it] + c_coh(ij, it)*m(ij, it)
-        LL[it] = LL[it] + y_coh(ij, it)*m(ij, it)
-        HH[it] = HH[it] + l_coh(ij, it)*m(ij, it)
-        AA[it] = AA[it] + a_coh(ij, it)*m(ij, it)
-        if(ij < JR)workpop[it] = workpop[it] + m(ij, it)
+    for ij in 1:JJ
+        CC[it] = CC[it] + c_coh[ij, it]*m[ij, it]
+        LL[it] = LL[it] + y_coh[ij, it]*m[ij, it]
+        HH[it] = HH[it] + l_coh[ij, it]*m[ij, it]
+        AA[it] = AA[it] + a_coh[ij, it]*m[ij, it]
+        if(ij < JR)
+            workpop[it] = workpop[it] + m[ij, it]
+        end
     end
 
     # damping and other quantities
     KK[it] = damp*(AA[it]-BB[it]-BA[it])+(1.0-damp)*KK[it]
     LL[it] = damp*LL[it] + (1.0-damp)*LL_old
-    II[it] = (1.0+n_p)*KK(itp) - (1.0-delta)*KK[it]
+    II[it] = (1.0+n_p)*KK[itp] - (1.0-delta)*KK[it]
     YY[it] = Omega * KK[it]^alpha * LL[it]^(1.0-alpha)
 
     # get average income and average working hours
@@ -522,43 +543,38 @@ end
 # function for calculating government parameters
 function government(it)
 
-    implicit none
-    integer, intent(in) :: it
-    integer :: ij, itm, itp
-    real*8 :: expend, EP_total
-
     # last year
     itm = year(it, 2, 1)
     itp = year(it, 1, 2)
 
     # set government quantities and pension payments
-    GG[it] = gy*YY(0)
-    BB[it] = by*YY(0)
+    GG[it] = gy*YY[0]
+    BB[it] = by*YY[0]
     PP[it] = 0.0
-    for ij = JR, JJ
-        PP[it] = PP[it] + pen(ij, it)*m(ij, it)
+    for ij in JR:JJ
+        PP[it] = PP[it] + pen[ij, it]*m[ij, it]
     end
 
     # calculate government expenditure
-    expend = GG[it] + (1.0+r[it])*BB[it] - (1.0+n_p)*BB(itp)
+    expend = GG[it] + (1.0+r[it])*BB[it] - (1.0+n_p)*BB[itp]
 
     # get budget balancing tax rate
-    if(tax[it] == 1)then
+    if (tax[it] == 1)
         tauc[it] = (expend + - (tauw[it]*w[it]*LL[it] + taur[it]*r[it]*AA[it]))/CC[it]
         p[it]    = 1.0 + tauc[it]
-    elseif(tax[it] == 2)then
+    elseif (tax[it] == 2)
         tauw[it] = (expend + - tauc[it]*CC[it])/(w[it]*LL[it] + r[it]*AA[it])
         taur[it] = tauw[it]
-    elseif(tax[it] == 3)then
+    elseif (tax[it] == 3)
         tauw[it] = (expend + - (tauc[it]*CC[it] + taur[it]*r[it]*AA[it]))/(w[it]*LL[it])
     else
         taur[it] = (expend + - (tauc[it]*CC[it] + tauw[it]*w[it]*LL[it]))/(r[it]*AA[it])
     end
 
-    taxrev(1, it) = tauc[it]*CC[it]
-    taxrev(2, it) = tauw[it]*w[it]*LL[it]
-    taxrev(3, it) = taur[it]*r[it]*AA[it]
-    taxrev(4, it) = sum(taxrev(1:3, it))
+    taxrev[1, it] = tauc[it]*CC[it]
+    taxrev[2, it] = tauw[it]*w[it]*LL[it]
+    taxrev[3, it] = taur[it]*r[it]*AA[it]
+    taxrev[4, it] = sum(taxrev[1:3, it])
 
     # get budget balancing social security replacement rate
     EP_total = PP[it]/kappa[it]
@@ -570,98 +586,196 @@ end
 # function for calculating implicit taxes in the pension system
 function implicit_taxes(it)
 
-    implicit none
-    integer, intent(in) :: it
-    integer :: ij, ijp, itp
 
-    for ij = 1, JR-1
+    for ij in 1:JR-1
         itp = year(it, ij, JJ)
-        tau_impl(ij, it) = 0.0
-        for ijp = JJ, ij+1, -1
+        tau_impl[ij, it] = 0.0
+        for ijp in JJ:-1:ij+1
             itp = year(it, ij, ijp)
-            if(ijp >= JR)then
-                tau_impl(ij, it) = tau_impl(ij, it) + kappa(itp)*INC(itp)
+            if (ijp >= JR)
+                tau_impl[ij, it] = tau_impl[ij, it] + kappa[itp]*INC[itp]
             end
-            tau_impl(ij, it) = tau_impl(ij, it)/(1.0+rn(itp))
+            tau_impl[ij, it] = tau_impl[ij, it]/(1.0+rn[itp])
         end
-        tau_impl(ij, it) = taup[it] - (1.0-lambda[it])*tau_impl(ij, it)/(dble(JR-1)*INC[it])
+        tau_impl[ij, it] = taup[it] - (1.0-lambda[it])*tau_impl[ij, it]/(Float64(JR-1)*INC[it])
     end
-
-
 end
 
 
 
 # initializes transitional variables
-function initialize_trn
+function initialize_trn()
 
-    implicit none
-    integer :: ij, it
+    println("TRANSITION PATH")
 
-    write(*,'(/a/)')'TRANSITION PATH'
-
-    write(*,'(a)')'ITER       H     K/Y     C/Y     I/Y       r       w        DIFF'
+    println("ITER       H     K/Y     C/Y     I/Y       r       w        DIFF")
 
     # set up population structure
-    for it = 1, TT
-        pop(1, it) = (1.0+n_p)*pop(1, it-1)
-        for ij = 2, JJ
-            pop(ij, it) = pop(ij-1, it-1)
+    for it in 1:TT
+        pop[1, it] = (1.0+n_p)*pop[1, it-1]
+        for ij in 2:JJ
+            pop[ij, it] = pop[ij-1, it-1]
         end
     end
 
-    for it = 1, TT
-        for ij = 1, JJ
-            m(ij, it) = pop(ij, it)/pop(1, it)
+    for it in 1:TT
+        for ij in 1:JJ
+            m[ij, it] = pop[ij, it]/pop[1, it]
         end
     end
 
-    for it = 1, TT
+    for it in 1:TT
 
-        taup[it] = taup(0)
-        if(tax[it] == 1)then
-            tauc[it] = tauc(0)
-        elseif(tax[it] == 2)then
-            tauw[it] = tauw(0)
-            taur[it] = taur(0)
-        elseif(tax[it] == 3)then
-            tauw[it] = tauw(0)
+        taup[it] = taup[0]
+        if (tax[it] == 1)
+            tauc[it] = tauc[0]
+        elseif (tax[it] == 2)
+            tauw[it] = tauw[0]
+            taur[it] = taur[0]
+        elseif (tax[it] == 3)
+            tauw[it] = tauw[0]
         else
-            taur[it] = taur(0)
+            taur[it] = taur[0]
         end
 
-        r[it] = r(0)
+        r[it] = r[0]
         rn[it] = r[it]*(1.0-taur[it])
-        w[it] = w(0)
+        w[it] = w[0]
         wn[it] = w[it]*(1.0-tauw[it]-taup[it])
         p[it] = 1.0 + tauc[it]
-        KK[it] = KK(0)
-        AA[it] = AA(0)
-        BB[it] = BB(0)
-        LL[it] = LL(0)
-        HH[it] = HH(0)
-        YY[it] = YY(0)
-        CC[it] = CC(0)
-        II[it] = II(0)
-        GG[it] = GG(0)
-        INC[it] = INC(0)
-        pen(:,it) = pen(:, 0)
-        penp(:,it,:) = penp(:, 0,:)
-        taup[it] = taup(0)
-        PP[it] = PP(0)
-        taxrev(:,it) = taxrev(:, 0)
-        c_coh(:, it) = c_coh(:, 0)
-        l_coh(:, it) = l_coh(:, 0)
-        y_coh(:, it) = y_coh(:, 0)
-        a_coh(:, it) = a_coh(:, 0)
-        aplus(:, :, :, :, :, it) = aplus(:, :, :, :, :, 0)
-        epplus(:, :, :, :, :, it) = epplus(:, :, :, :, :, 0)
-        c(:, :, :, :, :, it) = c(:, :, :, :, :, 0)
-        l(:, :, :, :, :, it) = l(:, :, :, :, :, 0)
-        phi(:, :, :, :, :, it) = phi(:, :, :, :, :, 0)
-        VV(:, :, :, :, :, it) = VV(:, :, :, :, :, 0)
-        RHS(:, :, :, :, :, it) = RHS(:, :, :, :, :, 0)
+        KK[it] = KK[0]
+        AA[it] = AA[0]
+        BB[it] = BB[0]
+        LL[it] = LL[0]
+        HH[it] = HH[0]
+        YY[it] = YY[0]
+        CC[it] = CC[0]
+        II[it] = II[0]
+        GG[it] = GG[0]
+        INC[it] = INC[0]
+
+        pen[:,it] = pen[:, 0]
+        penp[:,it,:] = penp[:, 0,:]
+        taup[it] = taup[0]
+        PP[it] = PP[0]
+        taxrev[:,it] = taxrev[:, 0]
+        c_coh[:, it] = c_coh[:, 0]
+        l_coh[:, it] = l_coh[:, 0]
+        y_coh[:, it] = y_coh[:, 0]
+        a_coh[:, it] = a_coh[:, 0]
+
+        aplus[:, :, :, :, :, it] = aplus[:, :, :, :, :, 0]
+        epplus[:, :, :, :, :, it] = epplus[:, :, :, :, :, 0]
+        c[:, :, :, :, :, it] = c[:, :, :, :, :, 0]
+        l[:, :, :, :, :, it] = l[:, :, :, :, :, 0]
+        phi[:, :, :, :, :, it] = phi[:, :, :, :, :, 0]
+        VV[:, :, :, :, :, it] = VV[:, :, :, :, :, 0]
+        RHS[:, :, :, :, :, it] = RHS[:, :, :, :, :, 0]
     end
 
 end
+
+
+
+# computes the transition path of the economy
+function get_transition()
+
+
+    # initialize remaining variables
+    if(!lsra_on)
+        initialize_trn()
+    else
+        println("ITER    COMP_OLD  EFFICIENCY        DIFF")
+    end
+
+    # start timer
+    #call tic()
+
+    # iterate until value function converges
+    for iter in 1:itermax
+
+        # derive prices
+        for it in 1:TT
+            prices(it)
+        end
+
+        # get implicit tax rates
+        for it in 1:TT
+            implicit_taxes(it)
+        end
+
+        # solve the household problem
+        for ij in JJ:-1:2
+            solve_household(ij, 1)
+        end
+        for it in 1:TT
+            solve_household(1, it)
+        end
+
+        # calculate the distribution of households over state space
+        for it in 1:TT
+            get_distribution(it)
+        end
+
+        # calculate lsra transfers if needed
+        if lsra_on
+            LSRA
+        end
+
+        # aggregate individual decisions
+        for it in 1:TT
+            aggregation(it)
+        end
+
+        # determine the government parameters
+        for it in 1:TT
+            government(it)
+        end
+
+        # get differences on goods markets
+        itcheck = 0
+        for it in 1:TT
+            if(abs(DIFF[it]/YY[it])*100.0 < sig)
+                itcheck = itcheck + 1
+            end
+        end
+
+        #itmax = maxloc(abs(DIFF[1:TT]/YY[1:TT]), 1)
+        itmax = argmax(abs.(DIFF[1:TT]./YY[1:TT]))
+
+        # check for convergence and write screen output
+        if(!lsra_on)
+
+            check = iter > 1 && itcheck == TT && abs(DIFF[itmax]/YY[itmax])*100.0 < sig*100.0
+            println(iter,"     ",round(digits = 5, HH[TT]),"   ", round(digits = 5, 5.0*KK[TT]/YY[TT]*100.0), "   ", round(digits = 5, CC[TT]/YY[TT]*100.0), "   ", round(digits = 5, II[TT]/YY[TT]*100.0), "   ", round(digits = 5, ((1.0+r[TT])^0.2-1.0)*100.0), "   ", round(digits = 5, w[TT]), "   ", round(digits = 8, DIFF[itmax]/YY[itmax]*100.0))
+
+        else
+            check = iter > 1 && itcheck == TT && lsra_comp/lsra_all > 0.99999 && abs(DIFF[itmax]/YY[itmax])*100.0 < sig*100.0
+            println(iter,"     ",round(digits = 5, lsra_comp/lsra_all*100.0), "    ", round(digits = 5, (Lstar^(1.0/(1.0-1.0/gamma))-1.0)*100.0), "     ", round(digits = 5, DIFF[itmax]/YY[itmax]*100.0))
+        end
+
+        # check for convergence
+        if check
+            #call toc
+            for it in 1:TT
+                if(!lsra_on)
+                    output(it)
+                end
+            end
+            #call output_summary()
+            return
+        end
+    end
+
+    #call toc
+    for it in 1:TT
+        if(! lsra_on)
+            output(it)
+        end
+    end
+    #call output_summary()
+
+    #write(*,'(a/)')'ATTENTION: NO CONVERGENCE ###'
+
+end 
 

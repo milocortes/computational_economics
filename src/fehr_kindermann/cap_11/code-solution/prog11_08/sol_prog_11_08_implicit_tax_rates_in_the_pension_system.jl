@@ -10,6 +10,7 @@
 #          contact@ce-fortran.com
 #
 ###############################################################################
+include("sol_prog_11_08_utils.jl")
 
 using OffsetArrays
 
@@ -90,7 +91,7 @@ global taxrev = OffsetArray(zeros(4,TT+1), 1:4,0:TT)
 
 # LSRA variables
 for param = [:BA, :SV]
-    @eval global $param = OffsetArray(zeros(TT+1),0:TT)    
+    @eval global $param = OffsetArray(zeros(TT+1),0:TT)
 end
 
 global lsra_comp
@@ -145,7 +146,6 @@ end
 
 global DIFF = OffsetArray(zeros(TT+1), 0:TT)
 
-
 ## Auxiliares para grid de ahorro
 global ial_v = Array{Int64}(undef, 1)
 global iar_v = Array{Int64}(undef, 1)
@@ -155,3 +155,13 @@ global varphi_v = zeros(1)
 global ial_ep = Array{Int64}(undef, 1)
 global iar_ep = Array{Int64}(undef, 1)
 global varphi_ep = zeros(1)
+
+get_SteadyState()
+
+# set reform parameters (adjust accordingly for Figure 11.8)
+#lambda(0:TT) = 0.99d0
+kappa[1:TT] .= 0.19
+
+# calculate transition path without lsra
+lsra_on = false
+get_transition()
