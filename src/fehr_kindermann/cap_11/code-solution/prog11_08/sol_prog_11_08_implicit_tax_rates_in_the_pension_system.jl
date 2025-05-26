@@ -156,12 +156,28 @@ global ial_ep = Array{Int64}(undef, 1)
 global iar_ep = Array{Int64}(undef, 1)
 global varphi_ep = zeros(1)
 
+## Files
+global file_output
+global file_summary
+
+
+#######
+
 get_SteadyState()
 
 # set reform parameters (adjust accordingly for Figure 11.8)
 #lambda(0:TT) = 0.99d0
-kappa[1:TT] .= 0.19
+kappa[1:TT] .= 0.19;
 
 # calculate transition path without lsra
 lsra_on = false
 get_transition()
+
+# calculate transition path with lsra
+lsra_on = true
+get_transition()
+
+# close files
+close(file_output)
+close(file_summary)
+
