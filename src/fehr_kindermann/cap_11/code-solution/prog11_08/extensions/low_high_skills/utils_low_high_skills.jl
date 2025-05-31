@@ -1,5 +1,7 @@
 using DynamicProgrammingUtils
 using Roots
+using Printf
+using Statistics
 
 # calculates year at which age ij agent is ij_p
 function year(it, ij, ijp)
@@ -170,7 +172,9 @@ function get_SteadyState()
         # determine the government parameters
         government(0)
 
-        println(iter, "     ", round(digits=2, HH[0]), "   ", round(digits=2, 5.0 * KK[0] / YY[0] * 100.0), "   ", round(digits=2, CC[0] / YY[0] * 100.0), "   ", round(digits=2, II[0] / YY[0] * 100.0), "   ", round(digits=2, ((1.0 + r[0])^0.2 - 1.0) * 100.0), "   ", round(digits=2, w[0]), "   ", round(digits=6, DIFF[0] / YY[0] * 100.0))
+        fmt = "%4i " * "%8.2f "^6 * "%12.5f\n"#'(i4,6f8.2,f12.5)'
+        @eval @printf $fmt $iter HH[0] ([5.0*KK[0], CC[0], II[0]]/YY[0]*100)... ((1.0+r[0])^0.2-1.0)*100.0 w[0] DIFF[0]/YY[0]*100.0
+        #println(iter,"     ",round(digits = 2, HH[0]),"   ", round(digits = 2, 5.0*KK[0]/YY[0]*100.0), "   ", round(digits = 2, CC[0]/YY[0]*100.0), "   ", round(digits = 2, II[0]/YY[0]*100.0), "   ", round(digits = 2, ((1.0+r[0])^0.2-1.0)*100.0), "   ", round(digits = 2, w[0]), "   ", round(digits = 6, DIFF[0]/YY[0]*100.0))
 
         if (abs(DIFF[0] / YY[0]) * 100.0 < sig)
             break
@@ -301,6 +305,9 @@ function initialize()
     BB .= by * YY[0]
     PP .= 0.0
 
+    # open files
+    file_output = open("output.out", "w");
+    file_summary = open("summary.out", "w");
 end
 
 
@@ -781,7 +788,7 @@ function get_transition()
 
         # calculate lsra transfers if needed
         if lsra_on
-            LSRA
+            LSRA()
         end
 
         # aggregate individual decisions
@@ -808,12 +815,18 @@ function get_transition()
         # check for convergence and write screen output
         if (!lsra_on)
 
-            check = iter > 1 && itcheck == TT && abs(DIFF[itmax] / YY[itmax]) * 100.0 < sig * 100.0
-            println(iter, "     ", round(digits=5, HH[TT]), "   ", round(digits=5, 5.0 * KK[TT] / YY[TT] * 100.0), "   ", round(digits=5, CC[TT] / YY[TT] * 100.0), "   ", round(digits=5, II[TT] / YY[TT] * 100.0), "   ", round(digits=5, ((1.0 + r[TT])^0.2 - 1.0) * 100.0), "   ", round(digits=5, w[TT]), "   ", round(digits=8, DIFF[itmax] / YY[itmax] * 100.0))
+            check = iter > 1 && itcheck == TT-1 && abs(DIFF[itmax]/YY[itmax])*100.0 < sig*100.0
+
+            fmt = "%4i " * "%8.2f "^6 * "%12.5f\n" #'(i4,6f8.2,f12.5)'
+
+            @eval @printf $fmt $iter HH[TT] ([5.0*KK[TT], CC[TT], II[TT]]/YY[TT]*100)... ((1.0+r[TT])^0.2-1.0)*100.0 w[TT] DIFF[TT]/YY[TT]*100.0
 
         else
-            check = iter > 1 && itcheck == TT && lsra_comp / lsra_all > 0.99999 && abs(DIFF[itmax] / YY[itmax]) * 100.0 < sig * 100.0
-            println(iter, "     ", round(digits=5, lsra_comp / lsra_all * 100.0), "    ", round(digits=5, (Lstar^(1.0 / (1.0 - 1.0 / gamma)) - 1.0) * 100.0), "     ", round(digits=5, DIFF[itmax] / YY[itmax] * 100.0))
+            check = iter > 1 && itcheck == TT-1 && lsra_comp/lsra_all > 0.99999 && abs(DIFF[itmax]/YY[itmax])*100.0 < sig*100.0
+
+            fmt = "%4i " * "%12.5f"^3 * "\n" # '(i4,3f12.5)'
+
+            @eval @printf $fmt $iter  (lsra_comp/lsra_all*100.0) (Lstar^(1.0/(1.0-1.0/gamma))-1.0)*100.0 DIFF[$itmax]/YY[$itmax]*100.0
         end
 
         # check for convergence
@@ -824,7 +837,7 @@ function get_transition()
                     output(it)
                 end
             end
-            #call output_summary()
+            output_summary()
             return
         end
     end
@@ -835,8 +848,390 @@ function get_transition()
             output(it)
         end
     end
-    #call output_summary()
+    output_summary()
+    println("ATTENTION: NO CONVERGENCE ###")
 
     #write(*,'(a/)')'ATTENTION: NO CONVERGENCE ###'
 
 end
+
+
+# function for writing output
+function output(it)
+
+    # calculate cohort specific variances of logs
+     exp_c = zeros(JJ)
+     var_c = zeros(JJ)
+     mas_c = zeros(JJ)
+     exp_l = zeros(JJ)
+     var_l = zeros(JJ)
+     mas_l = zeros(JJ)
+     exp_y = zeros(JJ)
+     var_y = zeros(JJ)
+     mas_y = zeros(JJ)
+ 
+ 
+     for ij = 1:JJ
+        for ik in 1:SS
+            for ia = 0:NA
+                for ir = 0:NR
+                    for ip = 1:NP
+                        for is = 1:NS
+    
+                            # consumption
+                            if (c[ij, ik, ia, ir, ip, is, it] > 0.0)
+                                temp = log(c[ij, ik, ia, ir, ip, is, it])
+                                exp_c[ij] = exp_c[ij] + temp*phi[ij, ik, ia, ir, ip, is, it]
+                                var_c[ij] = var_c[ij] + temp^2*phi[ij, ik, ia, ir, ip, is, it]
+                                mas_c[ij] = mas_c[ij] + phi[ij, ik, ia, ir, ip, is, it]
+                            end
+    
+                            if (l[ij, ik, ia, ir, ip, is, it] > 0.01)
+    
+                                # hours
+                                temp = log(l[ij, ik, ia, ir, ip, is, it])
+                                exp_l[ij] = exp_l[ij] + temp*phi[ij, ik, ia, ir, ip, is, it]
+                                var_l[ij] = var_l[ij] + temp^2*phi[ij, ik, ia, ir, ip, is, it]
+                                mas_l[ij] = mas_l[ij] + phi[ij, ik, ia, ir, ip, is, it]
+    
+                                # earnings
+                                temp = log(w[it]*eff[ij, ik]*theta[ip]*eta[is]*l[ij, ik, ia, ir, ip, is, it])
+                                exp_y[ij] = exp_y[ij] + temp*phi[ij, ik, ia, ir, ip, is, it]
+                                var_y[ij] = var_y[ij] + temp^2*phi[ij, ik, ia, ir, ip, is, it]
+                                mas_y[ij] = mas_y[ij] + phi[ij, ik, ia, ir, ip, is, it]
+                            end
+                        end
+                    end
+                end
+            end
+        end
+     end
+ 
+ 
+     exp_c = exp_c/max(maximum(mas_c), 1e-4)
+     var_c = var_c/max(maximum(mas_c), 1e-4)
+     exp_l = exp_l/max(maximum(mas_l), 1e-4)
+     var_l = var_l/max(maximum(mas_l), 1e-4)
+     exp_y = exp_y/max(maximum(mas_y), 1e-4)
+     var_y = var_y/max(maximum(mas_y), 1e-4)
+     var_c = var_c - exp_c.^2
+     var_l = var_l - exp_l.^2
+     var_y = var_y - exp_y.^2
+ 
+ 
+     # Output
+     @printf file_output "%s %3i \n\n" "EQUILIBRIUM YEAR " it 
+     
+     @printf file_output  "CAPITAL        K        A        B       BA        r     p.a.\n"
+     
+     fmt = " "^8*"%8.2f "^6*"\n"
+     @eval @printf file_output  $fmt KK[$it] AA[$it] BB[$it] BA[$it]  r[$it]  ((1.0+r[$it])^(1.0/5.0)-1.0)*100.0
+ 
+     fmt = "%s "*"%8.2f "^4 * "\n\n" 
+ 
+     @eval @printf file_output $fmt  "(in %) " ([KK[$it], AA[$it], BB[$it], BA[$it]]/YY[$it]*500.0)...
+ 
+     fmt = " "^8 * "%8.2f "^4 *"\n\n"
+     @printf  file_output "%s \n" "LABOR           L       HH      INC        w"
+     @eval @printf file_output  $fmt LL[$it] HH[$it]*100.0 INC[$it] w[$it]
+     
+     
+     fmt_val = " "^8 * "%8.2f "^4 * "%8.3f\n"
+     fmt_share = "%s " * "%8.2f "^4 * "%8.3f\n\n"
+     @printf file_output "%s \n" "GOODS          Y       C       I       G    DIFF"
+     @eval @printf file_output $fmt_val YY[$it] CC[$it] II[$it] GG[$it] DIFF[$it]
+     @eval @printf file_output $fmt_share "(in %) " ([YY[$it], CC[$it], II[$it], GG[$it], DIFF[$it]]/YY[$it]*100.0)...
+ 
+     fmt = " "^8 *"%8.2f"^6*"\n" 
+     fmt_share = "%s"*"%8.2f"^6*"\n"
+     fmt_rate = "%s"*"%8.2f"^3*"\n\n"
+     @printf  file_output "%s \n" "GOV         TAUC    TAUW    TAUR    TOTAL      G       B"
+     @eval @printf file_output $fmt taxrev[1:4, $it]... GG[$it] BB[$it]
+     @eval @printf file_output $fmt_share  "(in %)  " (taxrev[1:4, $it]/YY[$it]*100)... ([GG[$it], BB[$it]*5.0]/YY[$it]*100.0)...
+     @eval @printf file_output $fmt_rate  "(rate)  " ([tauc[$it], tauw[$it], taur[$it]]*100.0)...
+ 
+     fmt_val = " "^8*"%8.2f"^3*"\n"
+     fmt_rate = "%s "*"%8.2f"^3 * "\n\n"
+     @printf  file_output "%s \n" "PENS        TAUP     PEN      PP"
+     @eval @printf file_output $fmt_val taup[$it]*w[$it]*LL[$it] mean(pen[JR,:, 0]) PP[$it]
+     @eval @printf file_output $fmt_rate "(in %) " ([taup[$it], kappa[$it], PP[$it]/YY[$it]]*100.0)... 
+ 
+     fmt_val = " "^8*"%8.2f "^2*"\n"
+     fmt_rate = "%s "*"%8.2f "^2*"\n\n"
+     @printf file_output "%s \n" "LSRA          SV      BA"
+     @eval @printf file_output $fmt_val SV[$it] BA[$it] 
+     @eval @printf file_output $fmt_rate "(in %) " ([SV[$it], BA[$it]]/YY[$it]*100.0)...
+ 
+ 
+     # check for the maximium grid point used
+     iamax, iemax = check_grid(it)
+ 
+     itp = year(it, 1, 2)
+ 
+     @printf file_output "%s\n" "   IJ      CONS     LABOR  EARNINGS    INCOME    INCTAX      PENS    ASSETS    VAR(C)    VAR(L)    VAR(Y)      LSRA     VALUE     FLC       IAMAX     IEMAX"
+ 
+     fmt = "%3i "*"%10.3f "^13*"%10i %10i \n"
+ 
+     for ij in 1:JJ
+         @eval @printf file_output $fmt $ij  sum(c_coh[$ij,:,$it])/INC[0]  sum(l_coh[$ij,:, $it]) ([w[$it]*sum(y_coh[$ij, :, $it]), wn[$it]*sum(y_coh[$ij, :, $it])+rn[$it]*sum(a_coh[$ij, :, $it]), tauw[$it]*w[$it]*sum(y_coh[$ij, :, $it])+taur[$it]*r[$it]*sum(a_coh[$ij, :, $it]), sum(pen[$ij, :, $it]-taup[$it]*w[$it]*y_coh[$ij, :, $it]) , 5.0*sum(a_coh[$ij, :, $it])]/INC[0])... $var_c[$ij] $var_l[$ij] $var_y[$ij] sum(v_coh[$ij,:, $it]) sum(VV_coh[$ij,:,$it]) sum(FLC[$ij, :, $it]) $iamax[$ij] $iemax[$ij]
+     end
+ 
+     @printf file_output "%s \n\n" "--------------------------------------------------------------------"
+ 
+ end 
+
+
+
+# subroutine that checks for the maximum gridpoint used
+function check_grid(it)
+
+    iamax = zeros(JJ)
+    iemax = zeros(JJ)
+
+    for ij = 1:JJ
+        for ik = 1:SS
+            # check for the maximum asset grid point used at a certain age
+            for ia = 0:NA
+                for ir = 0:NR
+                    for ip = 1:NP
+                        for is = 1:NS
+                            if (phi[ij, ik, ia, ir, ip, is, it] > 1e-6)
+                                iamax[ij] = ia
+                            end
+                        end
+                    end
+                end
+            end
+        
+
+            # check for the maximum earning point grid point used at a certain age
+            for ir = 0:NR
+                for ia = 0:NA
+                    for ip = 1:NP
+                        for is = 1:NS
+                            if (phi[ij, ik, ia, ir, ip, is, it] > 1e-6)
+                                iemax[ij] = ir
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return iamax, iemax
+end 
+
+
+# writes summary output
+function output_summary()
+
+    HEV = OffsetArray(zeros( length(-(JJ-2):TT) ) , -(JJ-2):TT )
+    mas = OffsetArray(zeros( length( -(JJ-2):0)), -(JJ-2):0)
+
+    # aggregate ex post welfare changes of current generations
+    HEV .= 0.0
+    mas .= 0.0
+
+    for ij = JJ:-1:2
+        for ik = 1:SS
+            for ia = 0:NA
+                for ir = 0:NR
+                    for ip = 1:NP
+                        for is = 1:NS
+                            if (ij >= JR && ia == 0 && (kappa[0] <= 1e-10 || kappa[1] <= 1e-10))
+                                continue
+                            end
+                            HEV_help = ((VV[ij, ik, ia, ir, ip, is, 1]/max(VV[ij, ik, ia, ir, ip, is, 0], -1e10))^(1.0/egam)-1.0)*100.0
+                            HEV[-(ij-2)] = HEV[-(ij-2)] + HEV_help*phi[ij, ik, ia, ir, ip, is, 1]
+                            mas[-(ij-2)] = mas[-(ij-2)] + phi[ij, ik, ia, ir, ip, is, 1]
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    HEV[-(JJ-2):0] = HEV[-(JJ-2):0]./parent(mas)
+
+    # calculate ex ante welfare of future generations
+    for it = 1:TT
+        for ik = 1:SS
+            HEV[it] = ((VV_coh[1, ij, it]/VV_coh[1, ik, 0])^(1.0/egam)-1.0)*100.0
+        end
+    end
+
+    # headline
+    @printf file_summary "%s \n"  "           A        K        L        H        r        w        C        I        Y        B       BA     tauc     tauw     taur     taup      HEV       DIFF"
+    # current generations
+    fmt = "%3i "*" "^135 * "%8.2f \n"
+    for ij = -(JJ-2):-1
+        @eval @printf file_summary $fmt $ij $HEV[$ij]
+    end
+
+    # future generations
+    fmt = "%3i "*"%8.2f "^16 * "%10.5f \n"
+    for it = 0:TT
+        @eval @printf file_summary $fmt $it ([AA[$it]/AA[0]-1.0, KK[$it]/KK[0]-1.0, LL[$it]/LL[0]-1.0, HH[$it]-HH[0], (1.0+r[$it])^0.2-(1.0+r[0])^0.20, w[$it]/w[0]-1.0, CC[$it]/CC[0]-1.0, II[$it]/II[0]-1.0, YY[$it]/YY[0]-1.0, BB[$it]/BB[0]-1.0, BA[$it]/YY[$it], tauc[$it]-tauc[0], tauw[$it]-tauw[0], taur[$it]-taur[0], taup[$it]-taup[0]]*100.0)... $HEV[$it] DIFF[$it]/YY[$it]*100.0
+    end
+
+    if (lsra_on)
+        @eval @printf file_summary "%s %12.6f \n" "EFFICIENCY GAIN: " (Lstar^(1.0/(1.0-1.0/gamma))-1.0)*100.0
+    end
+
+end 
+
+
+# function for calculating lsra payments
+function LSRA()
+
+    global lsra_comp
+    global lsra_all
+    global Lstar
+    global lsra_on
+    
+    # initialize variables
+    SV[:] .= 0.0
+    v_coh[:, :, :] .= 0.0
+
+    # initialize counters
+    lsra_comp     = 0.0
+    lsra_all      = 0.0
+
+    for ij = 2:JJ
+        for ik = 1:SS
+            for ia = 0:NA
+                for ir = 0:NR
+                    for ip = 1:NP
+                        for is = 1:NS
+
+                            # for not for anything for an agent at retirement without pension and savings
+                            if (ij >= JR && ia == 0 && (kappa[0] <= 1e-10 || kappa[1] <= 1e-10) )
+                                v[ij, ik, ia, ir, ip, is, 1] = 0.0
+                                continue
+                            end
+
+                            # get today's utility
+                            VV_1 = VV[ij, ik, ia, ir, ip, is, 1]
+
+                            # get target utility
+                            VV_0 = VV[ij, ik, ia, ir, ip, is, 0]
+
+
+                            # get derivative of the value function
+                            dVV_dv = margu(c[ij, ik, ia, ir, ip, is, 1],l[ij, ik, ia, ir, ip, is, 1], 1)
+
+
+                            # calculate change in transfers
+                            v_tilde = (VV_0-VV_1)/dVV_dv
+
+                            # restrict z_tilde to income maximum
+                            v_tilde = max(v_tilde, -((1.0+rn[1])*a[ia] + penp[ij, ik, 1, ir] + wn[1]*eff[ij, ik]*theta[ip]*eta[is]*0.99 + v[ij, ik, ia, ir, ip, is, 1]))
+
+                            # check whether individual is already compensated
+                            lsra_all = lsra_all + phi[ij, ik, ia, ir, ip, is, 1]*m[ij, ik, 1]
+
+                            if (abs((VV_1-VV_0)/VV_0)*100.0 < sig) 
+                                lsra_comp = lsra_comp + phi[ij, ik, ia, ir, ip, is, 1]*m[ij, ik, 1]
+                            end
+
+                            # calculate total transfer
+                            v[ij, ik, ia, ir, ip, is, 1] = v[ij, ik, ia, ir, ip, is, 1] + damp*v_tilde
+
+                            # aggregate transfers by cohort
+                            v_coh[ij, ik, 1] = v_coh[ij, ik, 1] + v[ij, ik, ia, ir, ip, is, 1]*phi[ij, ik, ia, ir, ip, is, 1]
+
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    # aggregate transfers in year 1
+    for ij = 2:JJ
+        for ik = 1:SS
+            SV[1] = SV[1] + v_coh[ij, ik, 1]*m[ij, ik, 1]
+        end
+    end
+
+    # initialize present value variables
+    PV_t = 0.0
+    PV_0 = 0.0
+    PV_trans = 0.0
+
+    # calculate present value of utility changes (in monetary values)
+    PV_t_skills = zeros(SS)
+    PV_trans_skills = zeros(SS)
+    PV_0_skills = zeros(SS)
+    
+    for it = TT:-1:1
+        for ik = 1:SS
+            # get today's ex ante utility
+            EVV_t = damp*VV_coh[1, ik, it]
+
+            # get damped target utility
+            EVV_0 = damp*VV_coh[1, ik, 0]
+
+            # get derivative of expected utility function
+            dEVV_dv = 0.0
+            for ip = 1:NP
+                for is = 1:NS
+                    dEVV_dv = dEVV_dv + margu(c[1, ik, 0, 0, ip, is, it], l[1, ik, 0, 0, ip, is, it], it)*phi[1, ik, 0, 0, ip, is, it]
+                end
+            end
+
+            # calculate present values
+            if (it == TT)
+                PV_t_skills[ik]     = EVV_t/dEVV_dv    *(1.0+r[it])/(r[it]-n_p)
+                PV_0_skills[ik]     = EVV_0/dEVV_dv    *(1.0+r[it])/(r[it]-n_p)
+                PV_trans_skills[ik] = v[1, ik, 0, 0, 1, 1, it]*(1.0+r[it])/(r[it]-n_p)
+            else
+                PV_t_skills[ik]     = PV_t_skills[ik]    *(1.0+n_p)/(1.0+r[it+1]) + EVV_t/dEVV_dv
+                PV_0_skills[ik]     = PV_0_skills[ik]    *(1.0+n_p)/(1.0+r[it+1]) + EVV_0/dEVV_dv
+                PV_trans_skills[ik] = PV_trans_skills[ik]*(1.0+n_p)/(1.0+r[it+1]) + v[1, ik, 0, 0, 1, 1, it]
+            end
+        end
+    end
+
+
+    # calculate the constant utility gain/loss for future generations
+    Lstar = (sum(PV_t_skills)-sum(PV_trans_skills)-SV[1])/sum(PV_0_skills)
+
+    # calculate compensation payments for future cohorts
+    for it = TT:-1:1
+        for ik = 1:SS
+            # get today's ex ante utility
+            EVV_t = damp*VV_coh[1, ik, it]
+
+            # get target utility
+            EVV_0 = damp*VV_coh[1, ik, 0]*Lstar
+
+            # get derivative of expected utility function
+            dEVV_dv = 0.0
+            for ip = 1:NP
+                for is = 1:NS
+                    dEVV_dv = dEVV_dv + margu(c[1, ik, 0, 0, ip, is, it], l[1, ik, 0, 0, ip, is, it], it)*phi[1, ik, 0, 0, ip, is, it]
+                end
+            end
+
+            # compute change in transfers (restricted)
+            v_tilde = (EVV_0-EVV_t)/dEVV_dv
+
+            # calculate cohort transfer level
+            v[1, ik, 0, 0, :, :, it] = v[1, ik, 0, 0, :, :, it] .+ v_tilde
+
+            # aggregate transfers
+            v_coh[1, ik, it] = v[1, ik, 0, 0, 1, 1, it]
+            SV[it] = SV[it] + v_coh[1, ik, it]*m[1, ik, it]
+        end
+
+    end
+
+    # determine sequence of LSRA debt/savings
+    BA[2] = SV[1]/(1.0+n_p)
+    for it = 3:TT
+        BA[it] = ((1.0+r[it-1])*BA[it-1] + SV[it-1])/(1.0+n_p)
+    end
+
+end 

@@ -14,6 +14,7 @@ include("utils_low_high_skills.jl")
 
 using OffsetArrays
 using DataFrames
+using Plots 
 
 # number of transition periods
 global TT = 40
@@ -157,6 +158,11 @@ global ial_ep = Array{Int64}(undef, 1)
 global iar_ep = Array{Int64}(undef, 1)
 global varphi_ep = zeros(1)
 
+## Files
+global file_output
+global file_summary
+
+# calculate initial equilibrium
 get_SteadyState()
 
 # Compute social accounts
@@ -204,7 +210,8 @@ pension_system = DataFrame(
 
 # set reform parameters (adjust accordingly for Figure 11.8)
 #lambda(0:TT) = 0.99d0
-kappa[1:TT] .= 0.19
+#kappa[1:TT] .= 0.19
+kappa[1:TT] .= 0.7
 
 # calculate transition path without lsra
 lsra_on = false
@@ -214,11 +221,11 @@ get_transition()
 ## Long-run effects of the consumption tax reform over the life cycle of the households.
 ### Private Consumption
 plot([i for i in 20:5:75],  mean(c_coh[1:12,:, 0], dims=2)  , title = "Long-run Effects on Consumption", xlabel = "Year", label = "Consumption - Pre-Reforma")
-plot!([i for i in 20:5:75],   mean(c_coh[1:12,:, 40], dims=2)  , label = "Consumption- Post-Reforma")
+plot!([i for i in 20:5:75],   mean(c_coh[1:12,:, TT], dims=2)  , label = "Consumption- Post-Reforma")
 
 ### Working Hours
 plot([i for i in 20:5:75],  mean(l_coh[1:12,:, 0], dims=2), title = "Long-run Effects on Hours Worked", xlabel = "Year", label = "Pre-Reforma")
-plot!([i for i in 20:5:75],  mean(l_coh[1:12,:, 40], dims=2), label = "Post-Reforma")
+plot!([i for i in 20:5:75],  mean(l_coh[1:12,:, TT], dims=2), label = "Post-Reforma")
 
 ### Earnings
 plot([i for i in 20:5:75],  mean(w[0].*y_coh[1:12,:, 0], dims=2), title = "Average life-cycle", label = "Earnings - Pre-Reforma")
@@ -226,7 +233,7 @@ plot!([i for i in 20:5:75],  mean(w[0].*y_coh[1:12,:, TT], dims=2), label = "Ear
 
 ### Private Wealth
 plot([i for i in 20:5:75],  mean(a_coh[1:12,:, 0], dims=2), title = "Average life-cycle", label = "Wealth - Pre-Reforma")
-plot!([i for i in 20:5:75],  mean(a_coh[1:12,:, 40], dims=2), label = "Wealth Worked - Post-Reforma")
+plot!([i for i in 20:5:75],  mean(a_coh[1:12,:, TT], dims=2), label = "Wealth Worked - Post-Reforma")
 
 
 
@@ -255,7 +262,7 @@ df_transition_path = DataFrame(
     pensiones = (((pen[JR, 1, 0:TT] + pen[JR, 2, 0:TT])./YY[0:TT])/((pen[JR, 1, 0] + pen[JR, 2, 0])./YY[0]).-1)*100
 )
 
-df_transition_path = first(df_transition_path, 130)
+df_transition_path = first(df_transition_path, TT+1)
 
 image_transition_path = plot( plot(df_transition_path.labour_supply, title = "Labour supply"), 
 plot(df_transition_path.gdp, title = "Gross domestic product"),  
@@ -267,3 +274,12 @@ plot(df_transition_path.pensiones, title = "Pensions (%GDP)"),
 layout = (3, 2), ylabel = "%Ch from baseline", yguidefontsize = 7);
 
 image_transition_path
+
+### Calculate transition path with lsra
+lsra_on = true
+get_transition()
+
+# close files
+close(file_output)
+close(file_summary)
+
