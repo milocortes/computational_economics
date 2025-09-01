@@ -17,6 +17,31 @@ function year(it, ij, ijp)
     return year
 end 
 
+# function which computes the year in which the household lives
+function year2(it, addit)
+
+
+    year2 = it + addit
+
+    if(year2 > TT)
+        year2 = TT
+    end 
+
+    if(year2 < 0)
+        year2 = 0
+    end 
+
+    if(it == 0)
+        year2 = 0
+    end
+    if(it == TT)
+        year2 = TT
+    end
+
+    return year2
+end 
+
+
 # the first order condition
 function foc(x_in)
     global ij_com
@@ -701,20 +726,7 @@ function initialize_trn()
 
     println("ITER       H     K/Y     C/Y     I/Y       r       w        DIFF")
 
-    # set up population structure
-    for it in 1:TT
-        pop[1, it] = (1.0+n_p)*pop[1, it-1]
-        for ij in 2:JJ
-            pop[ij, it] = pop[ij-1, it-1]
-        end
-    end
-
-    for it in 1:TT
-        for ij in 1:JJ
-            m[ij, it] = pop[ij, it]/pop[1, it]
-        end
-    end
-
+    
     for it in 1:TT
 
         taup[it] = taup[0]
@@ -747,10 +759,10 @@ function initialize_trn()
         pen[:,it] = pen[:, 0]
         PP[it] = PP[0]
         taxrev[:,it] = taxrev[:, 0]
-        c_coh[:, it] = c_coh[:, 0]
-        l_coh[:, it] = l_coh[:, 0]
-        y_coh[:, it] = y_coh[:, 0]
-        a_coh[:, it] = a_coh[:, 0]
+        c_coh[:, :, it] = c_coh[:, :, 0]
+        l_coh[:, :, it] = l_coh[:, :, 0]
+        y_coh[:, :, it] = y_coh[:, :, 0]
+        a_coh[:, :, it] = a_coh[:, :, 0]
         aplus[:, :, :, :, it] = aplus[:, :, :, :, 0]
         c[:, :, :, :, it] = c[:, :, :, :, 0]
         l[:, :, :, :, it] = l[:, :, :, :, 0]
