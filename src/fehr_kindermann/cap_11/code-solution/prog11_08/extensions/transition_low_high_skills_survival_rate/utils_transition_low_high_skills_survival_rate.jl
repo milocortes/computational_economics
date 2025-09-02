@@ -1,6 +1,7 @@
 using DynamicProgrammingUtils
 using Roots
 using Printf
+using Statistics
 
 # calculates year at which age ij agent is ij_p
 function year(it, ij, ijp)
@@ -67,7 +68,7 @@ function foc(x_in)
     wagen = wn[it_com]*eff[ij_com]*theta[ip_com]*eta[is_com]
 
     # calculate available resources
-    available = (1.0+rn[it_com])*a[ia_com] + beq[ij_com, it_com]  + penp[ij_com, it_com, ir_com] + v_ind
+    available = (1.0+rn[it_com])*a[ia_com] + beq[ij_com, it_com]  + penp[ij_com, it_com, ir_com, ip_com] + v_ind
 
     # determine labor
     if (ij_com < JR)
@@ -287,7 +288,7 @@ function initialize()
     # get initial guess for savings decision and labor supply
     for ij in 1:JJ
         for ir in 0:NR
-            for ip in 1:NP
+            for ip in 0:NP
                 for is in 1:NS
                     @. aplus[ij, :, ir, ip, is, 0] = max(a[:]/2.0, a[1]/2.0) # max(a[:]/2.0, a[1]/2.0)
                     @. c[ij, :, ir, ip, is, 0] = max(a[:]/2.0, a[1]/2.0)
@@ -392,11 +393,13 @@ function solve_household(ij_in, it_in)
         l[JJ, ia, :, :, :, it] .= 0.0
 
         for ir in 0:NR
-            penp[JJ, it, ir] = kappa[it]*INC[it]*ep[ir]
+            
             for im in 0:NP
-                @. c[JJ, ia, ir, im, :, it] .= ((1.0+rn[it])*a[ia] + beq[JJ, it] .+ penp[JJ, it, ir] .+ v[JJ, ia, ir, im, :, it])/p[it]
+                penp[JJ, it, ir, im] = kappa[it]*INC[it]*ep[ir]
+                @. c[JJ, ia, ir, im, :, it] .= ((1.0+rn[it])*a[ia] + beq[JJ, it] .+ penp[JJ, it, ir, im] .+ v[JJ, ia, ir, im, :, it])/p[it]
                 VV[JJ, ia, ir, im, :, it] .= valuefunc(0.0, 0.0, c[JJ, ia, ir, im, 1, it], l[JJ, ia, ir, im, 1, it], JJ, im, 1, it)
             end
+            
         end
     end
 
@@ -420,25 +423,25 @@ function solve_household(ij_in, it_in)
         end
 
         for ia in 0:NA
-            for ip in 1:ip_max
+            #for ip in 0:ip_max
             # determine decision for zero assets at retirement without pension
             if (ij >= JR && ia == 0 && kappa[it] <= 1e-10)
-                aplus[ij, ia, :, ip, :, it] .= 0.0
-                epplus[ij, ia, :, ip, :, it] .= 0.0
-                c[ij, ia, :, ip, :, it] .= 0.0
-                l[ij, ia, :, ip, :, it] .= 0.0
-                VV[ij, ia, :, ip, :, it] .= valuefunc(0.0, 0.0, 0.0, 0.0, ij, ip, 1, it)
+                aplus[ij, ia, :, :, :, it] .= 0.0
+                epplus[ij, ia, :, :, :, it] .= 0.0
+                c[ij, ia, :, :, :, it] .= 0.0
+                l[ij, ia, :, :, :, it] .= 0.0
+                VV[ij, ia, :, :, :, it] .= valuefunc(0.0, 0.0, 0.0, 0.0, ij, 0, 1, it)
                 continue
             end
 
             for ir in 0:NR
-                #for ip in 1:ip_max
+                for ip in 0:ip_max
                     for is in 1:is_max
                         # pension system
                         if (ij >= JR)
-                            penp[ij, it, ir] = kappa[it]*INC[it]*ep[ir]
+                            penp[ij, it, ir, ip] = kappa[it]*INC[it]*ep[ir]
                         else
-                            penp[ij, it, ir] = 0.0
+                            penp[ij, it, ir, ip] = 0.0
                         end
 
                         # get initial guess for the individual choices
@@ -497,7 +500,7 @@ function interpolate(ij, it)
 
     for ia in 0:NA
         for ir in 0:NR
-            for ip in 1:NP
+            for ip in 0:NP
                 for is in 1:NS
 
                     # calculate RHS and EV
@@ -543,7 +546,7 @@ function get_distribution(it)
         # iterate over yesterdays gridpoints
         for ia in 0:NA
             for ir in 0:NR
-                for ip in 1:NP
+                for ip in 0:NP
                     for is in 1:NS
 
                         # interpolate yesterday's savings decision
@@ -597,6 +600,7 @@ function aggregation(it)
     l_coh[:, :, it]  .= 0.0
     y_coh[:, :, it]  .= 0.0
     a_coh[:, :, it]  .= 0.0
+    pen[:, :, it] .= 0.0
     VV_coh[:, :, it] .= 0.0
     m_coh[:, :]      .= 0.0
     FLC[:, :, it]     .= 0.0
@@ -611,7 +615,7 @@ function aggregation(it)
                         l_coh[ij, ip, it] = l_coh[ij, ip, it] + l[ij, ia, ir, ip, is, it]*phi[ij, ia, ir, ip, is, it]/frac_phi[ij, ip,it]
                         y_coh[ij, ip, it] = y_coh[ij, ip, it] + eff[ij]*theta[ip]*eta[is]*l[ij, ia, ir, ip, is, it]*phi[ij, ia, ir, ip, is, it]/frac_phi[ij, ip,it]
                         a_coh[ij, ip, it] = a_coh[ij, ip, it] + a[ia]*phi[ij, ia, ir, ip, is, it]/frac_phi[ij, ip,it]
-                        pen[ij, it] = pen[ij, it] +  penp[ij, it, ir]*phi[ij, ia, ir, ip, is, it]/frac_phi[ij, ip,it]
+                        pen[ij, ip, it] = pen[ij, ip, it] +  penp[ij, it, ir, ip]*phi[ij, ia, ir, ip, is, it]/frac_phi[ij, ip,it]
                         # exclude households who dies
                         if (ij >= JR && ia == 0 && (kappa[0] <= 1e-10 || kappa[1] <= 1e-10))
                             continue
@@ -658,6 +662,7 @@ function aggregation(it)
         end
     end
 
+    
     for it in 0:TT
 
         GAM[1,it] = omega[1]
@@ -670,6 +675,7 @@ function aggregation(it)
             GAM[ij, it] = omega[ij]/GAM[1, it]
         end
     end
+    
 
     # damping and other quantities
     KK[it] = damp*(AA[it]-BB[it]-BA[it])+(1.0-damp)*KK[it]
@@ -700,7 +706,7 @@ function government(it)
     PP[it] = 0.0
     for ij in JR:JJ
         for ip in 0:NP
-            PP[it] = PP[it] + pen[ij, it]*m_adjusted[ij, ip, it]
+            PP[it] = PP[it] + pen[ij, ip, it]*m_adjusted[ij, ip, it]
         end
     end
 
@@ -759,19 +765,6 @@ function initialize_trn()
 
     println("ITER       H     K/Y     C/Y     I/Y       r       w        DIFF")
 
-    # set up population structure
-    for it in 1:TT
-        pop[1, it] = (1.0+n_p)*pop[1, it-1]
-        for ij in 2:JJ
-            pop[ij, it] = pop[ij-1, it-1]
-        end
-    end
-
-    for it in 1:TT
-        for ij in 1:JJ
-            m[ij, it] = pop[ij, it]/pop[1, it]
-        end
-    end
 
     for it in 1:TT
 
@@ -803,15 +796,15 @@ function initialize_trn()
         GG[it] = GG[0]
         INC[it] = INC[0]
 
-        pen[:,it] = pen[:, 0]
-        penp[:,it,:] = penp[:, 0,:]
+        pen[:,:,it] = pen[:, :, 0]
+        penp[:,it,:,:] = penp[:, 0,:,:]
         taup[it] = taup[0]
         PP[it] = PP[0]
         taxrev[:,it] = taxrev[:, 0]
-        c_coh[:, it] = c_coh[:, 0]
-        l_coh[:, it] = l_coh[:, 0]
-        y_coh[:, it] = y_coh[:, 0]
-        a_coh[:, it] = a_coh[:, 0]
+        c_coh[:, :, it] = c_coh[:,:,0]
+        l_coh[:, :, it] = l_coh[:,:,0]
+        y_coh[:, :, it] = y_coh[:,:,0]
+        a_coh[:, :, it] = a_coh[:,:,0]
 
         aplus[:, :, :, :, :, it] = aplus[:, :, :, :, :, 0]
         epplus[:, :, :, :, :, it] = epplus[:, :, :, :, :, 0]
@@ -957,7 +950,7 @@ function output(it)
     for ij = 1:JJ
         for ia = 0:NA
             for ir = 0:NR
-                for ip = 1:NP
+                for ip = 0:NP
                     for is = 1:NS
 
                         # consumption
@@ -1034,7 +1027,7 @@ function output(it)
     fmt_val = " "^8*"%8.2f"^3*"\n"
     fmt_rate = "%s "*"%8.2f"^3 * "\n\n"
     @printf  file_output "%s \n" "PENS        TAUP     PEN      PP"
-    @eval @printf file_output $fmt_val taup[$it]*w[$it]*LL[$it] pen[JR, $it] PP[$it]
+    @eval @printf file_output $fmt_val taup[$it]*w[$it]*LL[$it] mean(pen[JR, :, $it]) PP[$it]
     @eval @printf file_output $fmt_rate "(in %) " ([taup[$it], kappa[$it], PP[$it]/YY[$it]]*100.0)... 
 
     fmt_val = " "^8*"%8.2f "^2*"\n"
@@ -1054,7 +1047,7 @@ function output(it)
     fmt = "%3i "*"%10.3f "^13*"%10i %10i \n"
 
     for ij in 1:JJ
-        @eval @printf file_output $fmt $ij  c_coh[$ij,$it]/INC[0]  l_coh[$ij,$it] ([w[$it]*y_coh[$ij,$it], wn[$it]*y_coh[$ij,$it]+rn[$it]*a_coh[$ij,$it], tauw[$it]*w[$it]*y_coh[$ij,$it]+taur[$it]*r[$it]*a_coh[$ij,$it], pen[$ij,$it]-taup[$it]*w[$it]*y_coh[$ij,$it], 5.0*a_coh[$ij,$it]]/INC[0])... $var_c[$ij] $var_l[$ij] $var_y[$ij] v_coh[$ij,$it] VV_coh[$ij,$it] FLC[$ij,$it] $iamax[$ij] $iemax[$ij]
+         @eval @printf file_output $fmt $ij  sum(c_coh[$ij,:,$it])/INC[0]  sum(l_coh[$ij,:, $it]) ([w[$it]*sum(y_coh[$ij, :, $it]), wn[$it]*sum(y_coh[$ij, :, $it])+rn[$it]*sum(a_coh[$ij, :, $it]), tauw[$it]*w[$it]*sum(y_coh[$ij, :, $it])+taur[$it]*r[$it]*sum(a_coh[$ij, :, $it]), sum(pen[$ij, :, $it]-taup[$it]*w[$it]*y_coh[$ij, :, $it]) , 5.0*sum(a_coh[$ij, :, $it])]/INC[0])... $var_c[$ij] $var_l[$ij] $var_y[$ij] sum(v_coh[$ij,:, $it]) sum(VV_coh[$ij,:,$it]) sum(FLC[$ij, :, $it]) $iamax[$ij] $iemax[$ij]
     end
 
     @printf file_output "%s \n\n" "--------------------------------------------------------------------"
@@ -1073,7 +1066,7 @@ function check_grid(it)
         # check for the maximum asset grid point used at a certain age
         for ia = 0:NA
             for ir = 0:NR
-                for ip = 1:NP
+                for ip = 0:NP
                     for is = 1:NS
                         if (phi[ij, ia, ir, ip, is, it] > 1e-6)
                             iamax[ij] = ia
@@ -1086,7 +1079,7 @@ function check_grid(it)
         # check for the maximum earning point grid point used at a certain age
         for ir = 0:NR
             for ia = 0:NA
-                for ip = 1:NP
+                for ip = 0:NP
                     for is = 1:NS
                         if (phi[ij, ia, ir, ip, is, it] > 1e-6)
                             iemax[ij] = ir
@@ -1121,7 +1114,7 @@ function LSRA()
     for ij = 2:JJ
         for ia = 0:NA
             for ir = 0:NR
-                for ip = 1:NP
+                for ip = 0:NP
                     for is = 1:NS
 
                         # for not for anything for an agent at retirement without pension and savings
@@ -1187,7 +1180,7 @@ function LSRA()
 
         # get derivative of expected utility function
         dEVV_dv = 0.0
-        for ip = 1:NP
+        for ip = 0:NP
             for is = 1:NS
                 dEVV_dv = dEVV_dv + margu(c[1, 0, 0, ip, is, it], l[1, 0, 0, ip, is, it], it)*phi[1, 0, 0, ip, is, it]
             end
@@ -1220,7 +1213,7 @@ function LSRA()
 
         # get derivative of expected utility function
         dEVV_dv = 0.0
-        for ip = 1:NP
+        for ip = 0:NP
             for is = 1:NS
                 dEVV_dv = dEVV_dv + margu(c[1, 0, 0, ip, is, it], l[1, 0, 0, ip, is, it], it)*phi[1, 0, 0, ip, is, it]
             end
@@ -1261,7 +1254,7 @@ function output_summary()
     for ij = JJ:-1:2
         for ia = 0:NA
             for ir = 0:NR
-                for ip = 1:NP
+                for ip = 0:NP
                     for is = 1:NS
                         if (ij >= JR && ia == 0 && (kappa[0] <= 1e-10 || kappa[1] <= 1e-10))
                             continue
@@ -1279,7 +1272,9 @@ function output_summary()
 
     # calculate ex ante welfare of future generations
     for it = 1:TT
-        HEV[it] = ((VV_coh[1, it]/VV_coh[1, 0])^(1.0/egam)-1.0)*100.0
+        for ip = 0:NP
+            HEV[it] = ((VV_coh[1, ip, it]/VV_coh[1, ip, 0])^(1.0/egam)-1.0)*100.0
+        end
     end
 
     # headline

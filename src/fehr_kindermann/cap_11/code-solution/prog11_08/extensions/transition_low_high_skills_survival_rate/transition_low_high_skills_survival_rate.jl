@@ -14,6 +14,7 @@ include("utils_transition_low_high_skills_survival_rate.jl")
 
 using OffsetArrays
 using Plots
+using DataFrames
 
 # number of transition periods
 global TT = 40
@@ -59,12 +60,12 @@ global Omega = 1.60
 
 # size of the asset grid
 global a_l    = 0.0
-global a_u    = 35.0
+global a_u    = 55.0
 global a_grow = 0.05
 
 # size of the earnings point grid
 global ep_l    = 0.0
-global ep_u    = 7.0
+global ep_u    = 10.0
 global ep_grow = 0.02
 
 # demographic parameters
@@ -106,11 +107,11 @@ global Lstar
 global lsra_on
 
 # cohort aggregate variables
-for param = [:c_coh, :l_coh, :y_coh, :a_coh, :v_coh, :VV_coh, :frac_phi, :beq_coh]
+for param = [:c_coh, :l_coh, :y_coh, :a_coh, :v_coh, :VV_coh, :frac_phi, :beq_coh, :pen]
     @eval global $param = OffsetArray(zeros(JJ, NP+1, TT+1), 1:JJ, 0:NP, 0:TT)
 end
 
-global pen = OffsetArray(zeros(JJ, TT+1), 1:JJ, 0:TT)
+#global pen = OffsetArray(zeros(JJ, TT+1), 1:JJ, 0:TT)
 
 # Bequest params
 global omega = zeros(JJ)
@@ -128,7 +129,7 @@ global eta = zeros(NS)
 
 global pi_m = OffsetArray(zeros(JJ, NP+1, NP+1), 1:JJ, 0:NP, 0:NP)
 
-global is_initial = 3
+global is_initial = 4
 
 # demographic and other model parameters
 for param = [:m, :pop, :m_adjusted]
@@ -148,7 +149,9 @@ for param = [:aplus, :epplus, :c, :l, :phi, :VV, :v]
     @eval global $param = OffsetArray(zeros(JJ, NA+1, NR+1, NP+1, NS, TT+1), 1:JJ, 0:NA, 0:NR, 0:NP, 1:NS, 0:TT)
 end
 
-global penp = OffsetArray(zeros(JJ, TT+1, NR+1), 1:JJ, 0:TT, 0:NR)
+#global penp = OffsetArray(zeros(JJ, TT+1, NR+1), 1:JJ, 0:TT, 0:NR)
+global penp = OffsetArray(zeros(JJ, TT+1, NR+1, NP+1), 1:JJ, 0:TT, 0:NR, 0:NP)
+
 global FLC = OffsetArray(zeros(JJ, NP+1, TT+1), 1:JJ, 0:NP, 0:TT)
 
 
@@ -177,9 +180,54 @@ global file_output
 global file_summary
 
 
-#######
+## Compute Steady State
 
 get_SteadyState()
+
+
+# Compute social accounts
+capital_market = DataFrame(
+    etiqueta=["valor", "(in %)"],
+    K=[KK[0], KK[0] / YY[0] * 500],
+    A=[AA[0], AA[0] / YY[0] * 500],
+    B=[BB[0], BB[0] / YY[0] * 500],
+    BA=[BA[0], BA[0] / YY[0] * 500],
+    r=[r[0], ""],
+    pa=[((1.0 + r[0])^(1.0 / 5.0) - 1.0) * 100.0, ""]
+);
+
+labour_market = DataFrame(
+    etiqueta=["valor"],
+    L=[LL[0]],
+    HH=[HH[0] * 100],
+    INC=[INC[0]],
+    w=[w[0]]
+);
+
+good_market = DataFrame(
+    etiqueta=["valor", "(in %)"],
+    Y=[YY[0], YY[0] / YY[0] * 100],
+    C=[CC[0], CC[0] / YY[0] * 100],
+    I=[II[0], II[0] / YY[0] * 100],
+    G=[GG[0], GG[0] / YY[0] * 100]
+);
+
+gov_accounts = DataFrame(
+    etiqueta=["valor", "(in %)", "(rate)"],
+    TAUC=[taxrev[1, 0], taxrev[1, 0] / YY[0] * 100, tauc[0] * 100],
+    TAUW=[taxrev[2, 0], taxrev[2, 0] / YY[0] * 100, tauw[0] * 100],
+    TAUR=[taxrev[3, 0], taxrev[3, 0] / YY[0] * 100, taur[0] * 100],
+    TOTAL=[taxrev[4, 0], taxrev[4, 0] / YY[0] * 100, ""],
+    G=[GG[0], GG[0] / YY[0] * 100, ""],
+    B=[BB[0], (BB[0] * 5.0) / YY[0] * 100, ""]
+);
+
+pension_system = DataFrame(
+    etiqueta=["valor", "(in %)"],
+    TAUP=[taup[0] * w[0] * LL[0], taup[0] * 100],
+    #PEN=[pen[JR, 0], kappa[0]],
+    PP=[PP[0], PP[0] / YY[0] * 100]
+);
 
 # set reform parameters (adjust accordingly for Figure 11.8)
 #lambda(0:TT) = 0.99d0
@@ -189,6 +237,28 @@ kappa[1:TT] .= 0.19;
 lsra_on = false
 get_transition()
 
+
+# The Long-Run Eﬀect
+## Long-run effects of the consumption tax reform over the life cycle of the households.
+### Private Consumption
+ages = 15 .+ (1:JJ)*5
+
+plot(ages,  vec(mean(c_coh[1:JJ,:, 0], dims=2)), title = "Long-run Effects on Consumption", xlabel = "Year", label = "Consumption - Pre-Reforma")
+plot!(ages,   vec(mean(c_coh[1:JJ,:, TT], dims=2)), label = "Consumption- Post-Reforma")
+
+### Working Hours
+plot(ages,  vec(mean(l_coh[1:JJ,:, 0], dims=2)) , title = "Long-run Effects on Hours Worked", xlabel = "Year", label = "Pre-Reforma")
+plot!(ages,  vec(mean(l_coh[1:JJ,:, TT], dims=2)) , label = "Post-Reforma")
+
+### Earnings
+plot(ages,  vec(mean(w[0].*y_coh[1:JJ,:, 0], dims=2)), title = "Average life-cycle", label = "Earnings - Pre-Reforma")
+plot!(ages,  vec(mean(w[0].*y_coh[1:JJ,:, TT], dims=2)), label = "Earnings - Post-Reforma")
+
+### Private Wealth
+plot(ages,  vec(mean(a_coh[1:JJ,:, 0], dims=2)), title = "Average life-cycle", label = "Wealth - Pre-Reforma")
+plot!(ages,  vec(mean(a_coh[1:JJ,:, TT], dims=2)), label = "Wealth Worked - Post-Reforma")
+
+# TODO
 # calculate transition path with lsra
 lsra_on = true
 get_transition()
