@@ -118,7 +118,7 @@ global eta = zeros(NS)
 global is_initial = 4
 
 # demographic and other model parameters
-for param = [:m, :pop]
+for param = [:m, :pop, :m_adjusted]
     @eval global $param = OffsetArray(zeros(JJ, NP+1, TT+1), 1:JJ, 0:NP, 0:TT)
 end
 
@@ -166,7 +166,6 @@ ages = 15 .+ (1:JJ)*5
 
 plot(ages, c_coh[:, 0, 0], ylabel = "Consumption", xlabel = "Age j", label="Good Health")
 plot!(ages, c_coh[:, 1, 0], label="Bad Health")
-plot!(ages, c_coh[:, 2, 0], label="Average")
 
 
 plot(ages, l_coh[:, 0, 0], ylabel = "Working time", xlabel = "Age j", label="Good Health")

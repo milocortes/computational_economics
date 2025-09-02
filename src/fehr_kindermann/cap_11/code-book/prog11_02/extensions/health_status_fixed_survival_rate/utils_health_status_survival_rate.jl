@@ -572,7 +572,7 @@ function aggregation(it)
                     end
                     VV_coh[ij, ip, it] = VV_coh[ij, ip, it] + VV[ij, ia, ip, is, it]*phi[ij, ia, ip, is, it]/frac_phi[ij, ip,it]
                     m_coh[ij, ip]      = m_coh[ij, ip] + phi[ij, ia, ip, is, it]/frac_phi[ij, ip,it]
-                    beq_coh[ij, ip, it] = beq_coh[ij, ip, it] + a[ia]*(1.0 + rn[it])*(1.0 - psi[ij, it])*phi[ij, ia, ip, is, it]/psi[ij, it] #
+                    beq_coh[ij, ip, it] = beq_coh[ij, ip, it] + a[ia]*(1.0 + rn[it])*(1.0 - psi[ij, it])*phi[ij, ia, ip, is, it]/psi[ij, it]/frac_phi[ij, ip,it] #
                 end
             end
         end
@@ -592,15 +592,17 @@ function aggregation(it)
 
     frac_phi_adjusted = (m[:,:,it] ./ m[1,:,it]') .* frac_phi[:,:,it]
 
+    m_adjusted[:,:, it] = frac_phi_adjusted
+
     for ij in 1:JJ
         for ip in 0:NP
-            CC[it] = CC[it] + c_coh[ij, ip, it]*frac_phi_adjusted[ij, ip]
-            LL[it] = LL[it] + y_coh[ij, ip, it]*frac_phi_adjusted[ij, ip]
-            HH[it] = HH[it] + l_coh[ij, ip, it]*frac_phi_adjusted[ij, ip]
-            AA[it] = AA[it] + a_coh[ij, ip, it]*frac_phi_adjusted[ij, ip]/psi[ij, it]#
-            BQ[it] = BQ[it] + beq_coh[ij, ip, it]*frac_phi_adjusted[ij, ip]
+            CC[it] = CC[it] + c_coh[ij, ip, it]*m_adjusted[ij, ip, it]
+            LL[it] = LL[it] + y_coh[ij, ip, it]*m_adjusted[ij, ip, it]
+            HH[it] = HH[it] + l_coh[ij, ip, it]*m_adjusted[ij, ip, it]
+            AA[it] = AA[it] + a_coh[ij, ip, it]*m_adjusted[ij, ip, it]/psi[ij, it]#
+            BQ[it] = BQ[it] + beq_coh[ij, ip, it]*m_adjusted[ij, ip, it]
             if (ij < JR)
-                workpop = workpop + frac_phi_adjusted[ij, ip]
+                workpop = workpop + m_adjusted[ij, ip, it]
             end
         end
     end
@@ -611,7 +613,7 @@ function aggregation(it)
         itm = year2(it, -1)
 
         for ij in 2:JJ
-            GAM[1,it] = GAM[1, it] + omega[ij]*sum(frac_phi_adjusted[ij,:])
+            GAM[1,it] = GAM[1, it] + omega[ij]*sum(m_adjusted[ij,:, it])
         end
         for ij in JJ:-1:1
             GAM[ij, it] = omega[ij]/GAM[1, it]
