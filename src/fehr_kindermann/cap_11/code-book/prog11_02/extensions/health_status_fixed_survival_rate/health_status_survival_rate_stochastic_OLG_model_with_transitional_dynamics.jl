@@ -15,6 +15,7 @@ include("utils_health_status_survival_rate.jl")
 
 using OffsetArrays
 using Plots
+using DataFrames
 
 # number of transition periods
 global TT = 40
@@ -152,16 +153,59 @@ global ial_v = Array{Int64}(undef, 1)
 global iar_v = Array{Int64}(undef, 1)
 global varphi_v = zeros(1)
 
+## Files
+global file_output
+global file_summary
+
 # calculate initial equilibrium
 get_SteadyState()
 
-# set reform parameter (adjsust accordingly for Figure 11.7)
-kappa[1:TT] .= 0.0
 
-# calculate transition path without lsra
-lsra_on = false
-get_transition()
+# Compute social accounts
+capital_market = DataFrame(
+    etiqueta=["valor", "(in %)"],
+    K=[KK[0], KK[0] / YY[0] * 500],
+    A=[AA[0], AA[0] / YY[0] * 500],
+    B=[BB[0], BB[0] / YY[0] * 500],
+    BA=[BA[0], BA[0] / YY[0] * 500],
+    r=[r[0], ""],
+    pa=[((1.0 + r[0])^(1.0 / 5.0) - 1.0) * 100.0, ""]
+);
 
+labour_market = DataFrame(
+    etiqueta=["valor"],
+    L=[LL[0]],
+    HH=[HH[0] * 100],
+    INC=[INC[0]],
+    w=[w[0]]
+);
+
+good_market = DataFrame(
+    etiqueta=["valor", "(in %)"],
+    Y=[YY[0], YY[0] / YY[0] * 100],
+    C=[CC[0], CC[0] / YY[0] * 100],
+    I=[II[0], II[0] / YY[0] * 100],
+    G=[GG[0], GG[0] / YY[0] * 100]
+);
+
+gov_accounts = DataFrame(
+    etiqueta=["valor", "(in %)", "(rate)"],
+    TAUC=[taxrev[1, 0], taxrev[1, 0] / YY[0] * 100, tauc[0] * 100],
+    TAUW=[taxrev[2, 0], taxrev[2, 0] / YY[0] * 100, tauw[0] * 100],
+    TAUR=[taxrev[3, 0], taxrev[3, 0] / YY[0] * 100, taur[0] * 100],
+    TOTAL=[taxrev[4, 0], taxrev[4, 0] / YY[0] * 100, ""],
+    G=[GG[0], GG[0] / YY[0] * 100, ""],
+    B=[BB[0], (BB[0] * 5.0) / YY[0] * 100, ""]
+);
+
+pension_system = DataFrame(
+    etiqueta=["valor", "(in %)"],
+    TAUP=[taup[0] * w[0] * LL[0], taup[0] * 100],
+    #PEN=[pen[JR, 0], kappa[0]],
+    PP=[PP[0], PP[0] / YY[0] * 100]
+);
+
+### Plot results between skills
 ages = 15 .+ (1:JJ)*5
 
 plot(ages, c_coh[:, 0, 0], ylabel = "Consumption", xlabel = "Age j", label="Good Health")
@@ -177,3 +221,39 @@ plot!(ages, y_coh[:, 1, 0], label="Bad Health")
 
 plot(ages, a_coh[:, 0, 0], ylabel = "Assets", xlabel = "Age j", label="Good Health")
 plot!(ages, a_coh[:, 1, 0], label="Bad Health")
+
+# set reform parameter (adjsust accordingly for Figure 11.7)
+kappa[1:TT] .= 0.0
+
+# calculate transition path without lsra
+lsra_on = false
+get_transition()
+
+# The Long-Run Eﬀect
+## Long-run effects of the consumption tax reform over the life cycle of the households.
+### Private Consumption
+ages = 15 .+ (1:JJ)*5
+
+plot(ages,  vec(mean(c_coh[1:JJ,:, 0], dims=2)), title = "Long-run Effects on Consumption", xlabel = "Year", label = "Consumption - Pre-Reforma")
+plot!(ages,   vec(mean(c_coh[1:JJ,:, TT], dims=2)), label = "Consumption- Post-Reforma")
+
+### Working Hours
+plot(ages,  vec(mean(l_coh[1:JJ,:, 0], dims=2)) , title = "Long-run Effects on Hours Worked", xlabel = "Year", label = "Pre-Reforma")
+plot!(ages,  vec(mean(l_coh[1:JJ,:, TT], dims=2)) , label = "Post-Reforma")
+
+### Earnings
+plot(ages,  vec(mean(w[0].*y_coh[1:JJ,:, 0], dims=2)), title = "Average life-cycle", label = "Earnings - Pre-Reforma")
+plot!(ages,  vec(mean(w[0].*y_coh[1:JJ,:, TT], dims=2)), label = "Earnings - Post-Reforma")
+
+### Private Wealth
+plot(ages,  vec(mean(a_coh[1:JJ,:, 0], dims=2)), title = "Average life-cycle", label = "Wealth - Pre-Reforma")
+plot!(ages,  vec(mean(a_coh[1:JJ,:, TT], dims=2)), label = "Wealth Worked - Post-Reforma")
+
+# TODO
+# calculate transition path with lsra
+lsra_on = true
+get_transition()
+
+# close files
+close(file_output)
+close(file_summary)
