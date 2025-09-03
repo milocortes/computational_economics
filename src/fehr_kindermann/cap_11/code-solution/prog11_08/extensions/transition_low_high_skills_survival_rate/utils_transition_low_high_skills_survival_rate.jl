@@ -813,6 +813,9 @@ function initialize_trn()
         phi[:, :, :, :, :, it] = phi[:, :, :, :, :, 0]
         VV[:, :, :, :, :, it] = VV[:, :, :, :, :, 0]
         RHS[:, :, :, :, :, it] = RHS[:, :, :, :, :, 0]
+
+        beq[:, :, it] = beq[:, :, 0]
+        BQ[it] = BQ[0]
     end
 
 end
