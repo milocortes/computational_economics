@@ -852,6 +852,7 @@ end
 # function for writing output
 function output(it)
 
+    global file_output
    # calculate cohort specific variances of logs
     exp_c = zeros(JJ)
     var_c = zeros(JJ)
@@ -1086,7 +1087,7 @@ function LSRA()
                     VV_0 = VV[ij, ia, ip, is, 0]
 
                     # get derivative of the value function
-                    dVV_da = margu(c[ij, ia, ip, is, 1],l[ij, ia, ip, is, 1], ip, 1)*(1+rn[1])
+                    dVV_da = margu(c[ij, ia, ip, is, 1],l[ij, ia, ip, is, 1], ip, 1)*(1.0+rn[1])
 
                     # calculate change in transfers
                     v_tilde = (VV_0-VV_1)/dVV_da
@@ -1176,7 +1177,8 @@ function LSRA()
             v_tilde = (EVV_0-EVV_t)/dEVV_da
 
             # calculate cohort transfer level
-            v[1, 0, 0, :, it] = v[1, 0, 0, :, it] .+ v_tilde
+            #v[1, 0, 0, :, it] = v[1, 0, 0, :, it] .+ v_tilde
+            v[1, 0, :, :, it] = v[1, 0, :, :, it] .+ v_tilde
 
             # aggregate transfers
             v_coh[1, ip , it] = v[1, 0, 1, 1, it]
