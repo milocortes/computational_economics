@@ -1093,20 +1093,20 @@ function LSRA()
                     v_tilde = (VV_0-VV_1)/dVV_da
 
                     # restrict z_tilde to income maximum
-                    v_tilde = max(v_tilde, -((1.0+rn[1])*a[ia] + beq[ij,1] + pen[ij, 1] + wn[1]*eff[ij]*theta[ip]*eta[is]*0.99 + v[ij, ia, ip, is, 1]))
-
+                    #v_tilde = max(v_tilde, -((1.0+rn[1])*a[ia] + beq[ij,1] + pen[ij, 1] + wn[1]*eff[ij]*theta[ip]*eta[is]*0.99 + v[ij, ia, ip, is, 1]))
+                    v_tilde = max(v_tilde, -((1.0+rn[1])*a[ia] + beq[ij,1] + pen[ij, 1] + wn[1]*eff[ij]*theta[ip]*eta[is]*l[ij, ia, ip, is, 1] + v[ij, ia, ip, is, 1]))
                     # check whether individual is already compensated
-                    lsra_all = lsra_all + phi[ij, ia, ip, is, 1]*m_adjusted[ij, ip, 1]
+                    lsra_all = lsra_all + phi[ij, ia, ip, is, 1]/frac_phi[ij, ip,1]*m_adjusted[ij, ip, 1]
                     
                     if (abs((VV_1-VV_0)/VV_0)*100.0 < sig) 
-                        lsra_comp = lsra_comp + phi[ij, ia, ip, is, 1]*m_adjusted[ij, ip, 1]
+                        lsra_comp = lsra_comp + phi[ij, ia, ip, is, 1]/frac_phi[ij, ip,1]*m_adjusted[ij, ip, 1]
                     end 
 
                     # calculate total transfer
                     v[ij, ia, ip, is, 1] = v[ij, ia, ip, is, 1] + damp*v_tilde
 
                     # aggregate transfers by cohort
-                    v_coh[ij, ip, 1] = v_coh[ij, ip, 1] + v[ij, ia, ip, is, 1]*phi[ij, ia, ip, is, 1]
+                    v_coh[ij, ip, 1] = v_coh[ij, ip, 1] + v[ij, ia, ip, is, 1]*phi[ij, ia, ip, is, 1]/frac_phi[ij, ip,1]
 
                 end
             end
@@ -1145,11 +1145,11 @@ function LSRA()
             if (it == TT)
                 PV_t     = EVV_t/dEVV_da    *(1.0+r[it])/(r[it]-n_p)
                 PV_0     = EVV_0/dEVV_da    *(1.0+r[it])/(r[it]-n_p)
-                PV_trans = v[1, 0, 1, 1, it]*(1.0+r[it])/(r[it]-n_p)
+                PV_trans = v[1, 0, ip, 1, it]*(1.0+r[it])/(r[it]-n_p)
             else
                 PV_t     = PV_t    *(1.0+n_p)/(1.0+r[it+1]) + EVV_t/dEVV_da
                 PV_0     = PV_0    *(1.0+n_p)/(1.0+r[it+1]) + EVV_0/dEVV_da
-                PV_trans = PV_trans*(1.0+n_p)/(1.0+r[it+1]) + v[1, 0, 1, 1, it]
+                PV_trans = PV_trans*(1.0+n_p)/(1.0+r[it+1]) + v[1, 0, ip, 1, it]
             end
         end
     end
@@ -1178,10 +1178,11 @@ function LSRA()
 
             # calculate cohort transfer level
             #v[1, 0, 0, :, it] = v[1, 0, 0, :, it] .+ v_tilde
-            v[1, 0, :, :, it] = v[1, 0, :, :, it] .+ v_tilde
+            v[1, 0, ip, :, it] = v[1, 0, ip, :, it] .+ v_tilde
 
             # aggregate transfers
-            v_coh[1, ip , it] = v[1, 0, 1, 1, it]
+            #v_coh[1, ip , it] = v[1, 0, 1, 1, it]
+            v_coh[1, ip , it] = v[1, 0, ip, 1, it]
             SV[it] = SV[it] + v_coh[1, ip, it]*m_adjusted[1, ip, it]
         end
     end
