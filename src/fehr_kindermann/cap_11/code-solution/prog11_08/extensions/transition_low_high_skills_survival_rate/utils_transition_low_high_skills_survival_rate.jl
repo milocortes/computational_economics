@@ -1109,7 +1109,7 @@ function LSRA()
     
     # initialize variables
     SV[:] .= 0.0
-    v_coh[:, :] .= 0.0
+    v_coh[:, :, :] .= 0.0
 
     # initialize counters
     lsra_comp     = 0.0
@@ -1135,27 +1135,27 @@ function LSRA()
 
 
                         # get derivative of the value function
-                        dVV_dv = margu(c[ij, ia, ir, ip, is, 1],l[ij, ia, ir, ip, is, 1], 1)
+                        dVV_dv = margu(c[ij, ia, ir, ip, is, 1],l[ij, ia, ir, ip, is, 1], ip, 1)*(1.0+rn[1])
 
 
                         # calculate change in transfers
                         v_tilde = (VV_0-VV_1)/dVV_dv
 
                         # restrict z_tilde to income maximum
-                        v_tilde = max(v_tilde, -((1.0+rn[1])*a[ia] + penp[ij, 1, ir] + wn[1]*eff[ij]*theta[ip]*eta[is]*0.99 + v[ij, ia, ir, ip, is, 1]))
+                        v_tilde = max(v_tilde, -((1.0+rn[1])*a[ia] + penp[ij, 1, ir, ip] + wn[1]*eff[ij]*theta[ip]*eta[is]*0.99 + v[ij, ia, ir, ip, is, 1]))
 
                         # check whether individual is already compensated
-                        lsra_all = lsra_all + phi[ij, ia, ir, ip, is, 1]*m[ij, 1]
+                        lsra_all = lsra_all + phi[ij, ia, ir, ip, is, 1]/frac_phi[ij, ip,1]*m_adjusted[ij, ip, 1]
 
                         if (abs((VV_1-VV_0)/VV_0)*100.0 < sig) 
-                            lsra_comp = lsra_comp + phi[ij, ia, ir, ip, is, 1]*m[ij, 1]
+                            lsra_comp = lsra_comp + phi[ij, ia, ir, ip, is, 1]/frac_phi[ij, ip,1]*m_adjusted[ij, ip, 1]
                         end
 
                         # calculate total transfer
                         v[ij, ia, ir, ip, is, 1] = v[ij, ia, ir, ip, is, 1] + damp*v_tilde
 
                         # aggregate transfers by cohort
-                        v_coh[ij, 1] = v_coh[ij, 1] + v[ij, ia, ir, ip, is, 1]*phi[ij, ia, ir, ip, is, 1]
+                        v_coh[ij, ip, 1] = v_coh[ij, ip, 1] + v[ij, ia, ir, ip, is, 1]*phi[ij, ia, ir, ip, is, 1]/frac_phi[ij, ip,1]
 
                     end
                 end
@@ -1165,7 +1165,9 @@ function LSRA()
 
     # aggregate transfers in year 1
     for ij = 2:JJ
-        SV[1] = SV[1] + v_coh[ij, 1]*m[ij, 1]
+        for ip = 0:NP
+            SV[1] = SV[1] + v_coh[ij, ip, 1]*m_adjusted[ij, ip, 1]
+        end
     end
 
     # initialize present value variables
@@ -1175,30 +1177,30 @@ function LSRA()
 
     # calculate present value of utility changes (in monetary values)
     for it = TT:-1:1
-
-        # get today's ex ante utility
-        EVV_t = damp*VV_coh[1, it]
-
-        # get damped target utility
-        EVV_0 = damp*VV_coh[1, 0]
-
-        # get derivative of expected utility function
-        dEVV_dv = 0.0
         for ip = 0:NP
-            for is = 1:NS
-                dEVV_dv = dEVV_dv + margu(c[1, 0, 0, ip, is, it], l[1, 0, 0, ip, is, it], it)*phi[1, 0, 0, ip, is, it]
-            end
-        end
+            # get today's ex ante utility
+            EVV_t = damp*VV_coh[1, ip, it]
 
-        # calculate present values
-        if (it == TT)
-            PV_t     = EVV_t/dEVV_dv    *(1.0+r[it])/(r[it]-n_p)
-            PV_0     = EVV_0/dEVV_dv    *(1.0+r[it])/(r[it]-n_p)
-            PV_trans = v[1, 0, 0, 1, 1, it]*(1.0+r[it])/(r[it]-n_p)
-        else
-            PV_t     = PV_t    *(1.0+n_p)/(1.0+r[it+1]) + EVV_t/dEVV_dv
-            PV_0     = PV_0    *(1.0+n_p)/(1.0+r[it+1]) + EVV_0/dEVV_dv
-            PV_trans = PV_trans*(1.0+n_p)/(1.0+r[it+1]) + v[1, 0, 0, 1, 1, it]
+            # get damped target utility
+            EVV_0 = damp*VV_coh[1, ip, 0]
+
+            # get derivative of expected utility function
+            dEVV_dv = 0.0
+            
+            for is = 1:NS
+                dEVV_dv = dEVV_dv + margu(c[1, 0, 0, ip, is, it], l[1, 0, 0, ip, is, it], ip, it)*phi[1, 0, 0, ip, is, it]/frac_phi[1, ip, it]*(1.0+rn[it])
+            end
+
+            # calculate present values
+            if (it == TT)
+                PV_t     = EVV_t/dEVV_dv    *(1.0+r[it])/(r[it]-n_p)
+                PV_0     = EVV_0/dEVV_dv    *(1.0+r[it])/(r[it]-n_p)
+                PV_trans = v[1, 0, 0, ip, 1, it]*(1.0+r[it])/(r[it]-n_p)
+            else
+                PV_t     = PV_t    *(1.0+n_p)/(1.0+r[it+1]) + EVV_t/dEVV_dv
+                PV_0     = PV_0    *(1.0+n_p)/(1.0+r[it+1]) + EVV_0/dEVV_dv
+                PV_trans = PV_trans*(1.0+n_p)/(1.0+r[it+1]) + v[1, 0, 0, ip, 1, it]
+            end
         end
     end
 
@@ -1208,31 +1210,30 @@ function LSRA()
 
     # calculate compensation payments for future cohorts
     for it = TT:-1:1
-
-        # get today's ex ante utility
-        EVV_t = damp*VV_coh[1, it]
-
-        # get target utility
-        EVV_0 = damp*VV_coh[1, 0]*Lstar
-
-        # get derivative of expected utility function
-        dEVV_dv = 0.0
         for ip = 0:NP
+            # get today's ex ante utility
+            EVV_t = damp*VV_coh[1, ip, it]
+
+            # get target utility
+            EVV_0 = damp*VV_coh[1, ip, 0]*Lstar
+
+            # get derivative of expected utility function
+            dEVV_dv = 0.0
+            
             for is = 1:NS
-                dEVV_dv = dEVV_dv + margu(c[1, 0, 0, ip, is, it], l[1, 0, 0, ip, is, it], it)*phi[1, 0, 0, ip, is, it]
+                dEVV_dv = dEVV_dv + margu(c[1, 0, 0, ip, is, it], l[1, 0, 0, ip, is, it], ip, it)*phi[1, 0, 0, ip, is, it]/frac_phi[1, ip, it]*(1.0+rn[it])
             end
+
+            # compute change in transfers (restricted)
+            v_tilde = (EVV_0-EVV_t)/dEVV_dv
+
+            # calculate cohort transfer level
+            v[1, 0, 0, ip, :, it] = v[1, 0, 0, ip, :, it] .+ v_tilde
+
+            # aggregate transfers
+            v_coh[1, ip, it] = v[1, 0, 0, ip, 1, it]
+            SV[it] = SV[it] + v_coh[1, ip, it]*m_adjusted[1, ip, it]
         end
-
-        # compute change in transfers (restricted)
-        v_tilde = (EVV_0-EVV_t)/dEVV_dv
-
-        # calculate cohort transfer level
-        v[1, 0, 0, :, :, it] = v[1, 0, 0, :, :, it] .+ v_tilde
-
-        # aggregate transfers
-        v_coh[1, it] = v[1, 0, 0, 1, 1, it]
-        SV[it] = SV[it] + v_coh[1, it]*m[1, it]
-
     end
 
     # determine sequence of LSRA debt/savings
