@@ -1093,8 +1093,8 @@ function LSRA()
                     v_tilde = (VV_0-VV_1)/dVV_da
 
                     # restrict z_tilde to income maximum
-                    #v_tilde = max(v_tilde, -((1.0+rn[1])*a[ia] + beq[ij,1] + pen[ij, 1] + wn[1]*eff[ij]*theta[ip]*eta[is]*0.99 + v[ij, ia, ip, is, 1]))
-                    v_tilde = max(v_tilde, -((1.0+rn[1])*a[ia] + beq[ij,1] + pen[ij, 1] + wn[1]*eff[ij]*theta[ip]*eta[is]*l[ij, ia, ip, is, 1] + v[ij, ia, ip, is, 1]))
+                    v_tilde = max(v_tilde, -((1.0+rn[1])*a[ia] + beq[ij,1] + pen[ij, 1] + wn[1]*eff[ij]*theta[ip]*eta[is]*0.99 + v[ij, ia, ip, is, 1]))
+                    #v_tilde = max(v_tilde, -((1.0+rn[1])*a[ia] + beq[ij,1] + pen[ij, 1] + wn[1]*eff[ij]*theta[ip]*eta[is]*l[ij, ia, ip, is, 1] + v[ij, ia, ip, is, 1]))
                     # check whether individual is already compensated
                     lsra_all = lsra_all + phi[ij, ia, ip, is, 1]/frac_phi[ij, ip,1]*m_adjusted[ij, ip, 1]
                     
