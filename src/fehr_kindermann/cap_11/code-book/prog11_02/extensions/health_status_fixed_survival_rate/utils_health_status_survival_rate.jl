@@ -1138,7 +1138,7 @@ function LSRA()
             dEVV_da = 0.0
 
             for is = 1:NS
-                dEVV_da = dEVV_da + margu(c[1, 0, ip, is, it], l[1, 0, ip, is, it], ip, it)*phi[1, 0, ip, is, it]*(1.0+rn[it])
+                dEVV_da = dEVV_da + margu(c[1, 0, ip, is, it], l[1, 0, ip, is, it], ip, it)*phi[1, 0, ip, is, it]/frac_phi[1, ip, it]*(1.0+rn[it])
             end
 
             # calculate present values
@@ -1170,7 +1170,7 @@ function LSRA()
             dEVV_da = 0.0
 
             for is = 1:NS
-                dEVV_da = dEVV_da + margu(c[1, 0, ip, is, it], l[1, 0, ip, is, it], ip, it)*phi[1, 0, ip, is, it]*(1.0+rn[it])
+                dEVV_da = dEVV_da + margu(c[1, 0, ip, is, it], l[1, 0, ip, is, it], ip, it)*phi[1, 0, ip, is, it]/frac_phi[1, ip, it]*(1.0+rn[it])
             end
         
             # compute change in transfers (restricted)
