@@ -1199,7 +1199,7 @@ function LSRA()
         if (it == TT)
             PV_t     = EVV_t/dEVV_dv    *(1.0+r[it])/(r[it]-n_p)
             PV_0     = EVV_0/dEVV_dv    *(1.0+r[it])/(r[it]-n_p)
-            PV_trans = v[1, 0, 0, ip, 1, it]*(1.0+r[it])/(r[it]-n_p)
+            PV_trans = v[1, 0, 0, 1, 1, it]*(1.0+r[it])/(r[it]-n_p)
         else
             PV_t     = PV_t    *(1.0+n_p)/(1.0+r[it+1]) + EVV_t/dEVV_dv
             PV_0     = PV_0    *(1.0+n_p)/(1.0+r[it+1]) + EVV_0/dEVV_dv
