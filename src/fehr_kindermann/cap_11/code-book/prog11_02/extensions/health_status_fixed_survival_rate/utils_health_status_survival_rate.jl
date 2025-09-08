@@ -1127,31 +1127,33 @@ function LSRA()
 
     # calculate present value of utility changes (in monetary values)
     for it = TT:-1:1
+        
+        # get today's ex ante utility
+        EVV_t = damp*VV_coh[1, 0, it] + damp*VV_coh[1, 1, it]
+
+        # get damped target utility
+        EVV_0 = damp*VV_coh[1, 0, 0] + damp*VV_coh[1, 1, 0]
+
+        # get derivative of expected utility function
+        dEVV_da = 0.0
+
         for ip = 0:NP
-            # get today's ex ante utility
-            EVV_t = damp*VV_coh[1, ip, it]
-
-            # get damped target utility
-            EVV_0 = damp*VV_coh[1, ip, 0]
-
-            # get derivative of expected utility function
-            dEVV_da = 0.0
-
             for is = 1:NS
                 dEVV_da = dEVV_da + margu(c[1, 0, ip, is, it], l[1, 0, ip, is, it], ip, it)*phi[1, 0, ip, is, it]/frac_phi[1, ip, it]*(1.0+rn[it])
             end
-
-            # calculate present values
-            if (it == TT)
-                PV_t     = EVV_t/dEVV_da    *(1.0+r[it])/(r[it]-n_p)
-                PV_0     = EVV_0/dEVV_da    *(1.0+r[it])/(r[it]-n_p)
-                PV_trans = v[1, 0, ip, 1, it]*(1.0+r[it])/(r[it]-n_p)
-            else
-                PV_t     = PV_t    *(1.0+n_p)/(1.0+r[it+1]) + EVV_t/dEVV_da
-                PV_0     = PV_0    *(1.0+n_p)/(1.0+r[it+1]) + EVV_0/dEVV_da
-                PV_trans = PV_trans*(1.0+n_p)/(1.0+r[it+1]) + v[1, 0, ip, 1, it]
-            end
         end
+
+        # calculate present values
+        if (it == TT)
+            PV_t     = EVV_t/dEVV_da    *(1.0+r[it])/(r[it]-n_p)
+            PV_0     = EVV_0/dEVV_da    *(1.0+r[it])/(r[it]-n_p)
+            PV_trans = v[1, 0, 0, 1, it]*(1.0+r[it])/(r[it]-n_p)
+        else
+            PV_t     = PV_t    *(1.0+n_p)/(1.0+r[it+1]) + EVV_t/dEVV_da
+            PV_0     = PV_0    *(1.0+n_p)/(1.0+r[it+1]) + EVV_0/dEVV_da
+            PV_trans = PV_trans*(1.0+n_p)/(1.0+r[it+1]) + v[1, 0, 0, 1, it]
+        end
+
     end
 
     # calculate the constant utility gain/loss for future generations
@@ -1159,32 +1161,37 @@ function LSRA()
 
     # calculate compensation payments for future cohorts
     for it = TT:-1:1
+        
+        # get today's ex ante utility
+        EVV_t = damp*VV_coh[1, 0, it] + damp*VV_coh[1, 1, it]
+
+        # get target utility
+        EVV_0 = damp*VV_coh[1, 0, 0]*Lstar + damp*VV_coh[1, 1, 0]*Lstar
+
+        # get derivative of expected utility function
+        dEVV_da = 0.0
+
         for ip = 0:NP
-            # get today's ex ante utility
-            EVV_t = damp*VV_coh[1, ip, it]
-
-            # get target utility
-            EVV_0 = damp*VV_coh[1, ip, 0]*Lstar
-
-            # get derivative of expected utility function
-            dEVV_da = 0.0
-
             for is = 1:NS
                 dEVV_da = dEVV_da + margu(c[1, 0, ip, is, it], l[1, 0, ip, is, it], ip, it)*phi[1, 0, ip, is, it]/frac_phi[1, ip, it]*(1.0+rn[it])
             end
-        
-            # compute change in transfers (restricted)
-            v_tilde = (EVV_0-EVV_t)/dEVV_da
-
-            # calculate cohort transfer level
-            #v[1, 0, 0, :, it] = v[1, 0, 0, :, it] .+ v_tilde
-            v[1, 0, ip, :, it] = v[1, 0, ip, :, it] .+ v_tilde
-
-            # aggregate transfers
-            #v_coh[1, ip , it] = v[1, 0, 1, 1, it]
-            v_coh[1, ip , it] = v[1, 0, ip, 1, it]
-            SV[it] = SV[it] + v_coh[1, ip, it]*m_adjusted[1, ip, it]
         end
+
+        # compute change in transfers (restricted)
+        v_tilde = (EVV_0-EVV_t)/dEVV_da
+
+        # calculate cohort transfer level
+        #v[1, 0, 0, :, it] = v[1, 0, 0, :, it] .+ v_tilde
+        v[1, 0, :, :, it] = v[1, 0, :, :, it] .+ v_tilde
+
+        # aggregate transfers
+        #v_coh[1, ip , it] = v[1, 0, 1, 1, it]
+        v_coh[1, 0 , it] = v[1, 0, 0, 1, it]
+        v_coh[1, 1 , it] = v[1, 0, 1, 1, it]
+
+        SV[it] = SV[it] + (v_coh[1, 0, it]*m_adjusted[1, 0, it])+ (v_coh[1, 1, it]*m_adjusted[1, 1, it])
+
+        
     end
 
     # determine sequence of LSRA debt/savings

@@ -67,7 +67,7 @@ global n_p   = (1.0+0.01)^5-1e0
 # simulation parameters
 global damp    = 0.30
 global sig     = 1e-4
-global itermax = 50
+global itermax = 60
 
 # macroeconomic variables
 for param = [:r, :rn, :w, :wn, :p, :KK, :AA, :BB, :LL, :HH, :YY, :CC, :II, :GG, :INC, :BQ]
